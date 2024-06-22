@@ -1,18 +1,22 @@
-from src.database.models import User, PrivilegeStatus, PrivilegeType
+from src.database.models import User, PrivilegeStatus, PrivilegeType, AuthToken
 import datetime
+import os
 
-serverUser = User(id=1,steamId='server')
-Users = [
-    serverUser
-]
 
-ownerPrivilege = PrivilegeType(id=1,accessLevel=0,name='owner',description='One privilege to rule them all!')
-PrivilegeTypes = [
-    ownerPrivilege,
-    PrivilegeType(id=2,accessLevel=1,name='admin',description='Server administrator, developer'),
-    PrivilegeType(id=3,accessLevel=2,name='moderator',description='Server/Discord moderator')
-]
+Users = {
+    'server':User(id=1,steamId='server')
+}
 
-Privileges = [
-    PrivilegeStatus(id=1,userId=serverUser.id,privilegeId=ownerPrivilege.id,activeUntil=datetime.datetime.max)
-]
+PrivilegeTypes = {
+    'owner': PrivilegeType(id=1,accessLevel=0,name='owner',description='One privilege to rule them all!'),
+    'admin': PrivilegeType(id=2,accessLevel=1,name='admin',description='Server administrator, developer'),
+    'moderator': PrivilegeType(id=3,accessLevel=2,name='moderator',description='Server/Discord moderator')
+}
+
+Privileges = {
+    'server': PrivilegeStatus(id=1,userId=Users['server'].id,privilegeId=PrivilegeTypes['owner'].id,activeUntil=datetime.datetime(2100, 1, 1, 1, 1, 1))
+}
+
+AuthTokens = {
+    'server': AuthToken(id=1,userId=Users['server'].id,token=os.environ.get('SERVER_TOKEN'))
+}

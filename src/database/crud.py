@@ -20,3 +20,7 @@ def set_perks(db:Session, user_id : int, perks : Schemas.PerkSet) -> Models.Perk
 
 def get_privilege(db: Session, user_id : int) -> Models.PrivilegeType:
     return db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.userId == user_id).first()
+
+def check_token(db: Session, token : str):
+    found = db.query(Models.AuthToken).filter(Models.AuthToken.token == token).first()
+    return found is not None
