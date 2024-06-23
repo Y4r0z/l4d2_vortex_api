@@ -1,0 +1,28 @@
+version: '3.4'
+
+services:
+  mydb:
+    container_name: mydb
+    image: mysql:8.3
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=__YOUR_PASSWORD__
+      - MYSQL_DATABASE=__DATABASE_NAME__
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 10s
+      retries: 5
+  l4d2vortexapi:
+    container_name: l4d2vortexapi
+    links:
+      - "mydb"
+    image: l4d2vortexapi
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    env_file:
+      - .env
+    ports:
+      - 3005:3005
+    restart: on-failure

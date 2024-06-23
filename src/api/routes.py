@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import Depends, HTTPException, APIRouter
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.database.models import SessionLocal
 from src.database import crud as Crud, models as Models
@@ -6,9 +6,14 @@ from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import Optional
 
+"""
+TODO:
+    Проверка accessLevel для действий, на данный момент это не обязательно из-за малого функционала
+"""
+
 security = HTTPBearer()
 
-api = FastAPI()
+api = APIRouter()
 
 def getUser(db : Session, steam_id : str) -> Models.User:
     user = Crud.get_user(db, steam_id)
