@@ -43,6 +43,8 @@ def get_perks(steam_id: str, db: Session = Depends(get_db)):
 @api.post('/perks', response_model=Schemas.PerkSet)
 def set_perks(steam_id:str, perks: Schemas.PerkSet, token: str = Depends(requireToken), db: Session = Depends(get_db)):
     if not Crud.check_token(db, token): raise HTTPException(status_code=401, detail="Bearer token is not valid!")
-    user = getUser(db, steam_id)
+    user = Crud.get_user(db, steam_id)
+    if not user:
+        user = Crud.create_user(db, steam_id)
     perks = Crud.set_perks(db, user.id, perks)
     return perks
