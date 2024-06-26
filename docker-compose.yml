@@ -30,7 +30,7 @@ services:
     links:
       - "vortex_l4d2_db"
     ports:
-      - 8080:80
+      - 3337:80
     env_file:
       - .env
     restart: unless-stopped

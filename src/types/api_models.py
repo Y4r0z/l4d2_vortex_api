@@ -2,18 +2,18 @@ import datetime
 from pydantic import BaseModel
 
 class PerkSet(BaseModel):
-    survivorPerk1: int = 0
-    survivorPerk2: int = 0
-    survivorPerk3: int = 0
-    survivorPerk4: int = 0
+    survivorPerk1: str
+    survivorPerk2: str
+    survivorPerk3: str
+    survivorPerk4: str
 
-    boomerPerk: int = 0
-    smokerPerk: int = 0
-    hunterPerk: int = 0
-    jockeyPerk: int = 0
-    spitterPerk: int = 0
-    chargerPerk: int = 0
-    tankPerk: int = 0
+    boomerPerk: str
+    smokerPerk: str
+    hunterPerk: str
+    jockeyPerk: str
+    spitterPerk: str
+    chargerPerk: str
+    tankPerk: str
 
 class PrivilegeType(BaseModel):
     accessLevel : int = 100

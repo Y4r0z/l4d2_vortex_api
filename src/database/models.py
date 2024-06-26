@@ -27,18 +27,18 @@ class PerkSet(Base):
     __tablename__ = "perkSet"
     id : Mapped[int] = column(primary_key=True, autoincrement=True)
 
-    survivorPerk1 : Mapped[int] = column(Integer, default=0)
-    survivorPerk2 : Mapped[int] = column(Integer, default=0)
-    survivorPerk3 : Mapped[int] = column(Integer, default=0)
-    survivorPerk4 : Mapped[int] = column(Integer, default=0)
+    survivorPerk1 : Mapped[str] = column(String(64))
+    survivorPerk2 : Mapped[str] = column(String(64))
+    survivorPerk3 : Mapped[str] = column(String(64))
+    survivorPerk4 : Mapped[str] = column(String(64))
 
-    boomerPerk : Mapped[int] = column(Integer, default=0)
-    smokerPerk : Mapped[int] = column(Integer, default=0)
-    hunterPerk : Mapped[int] = column(Integer, default=0)
-    jockeyPerk : Mapped[int] = column(Integer, default=0)
-    spitterPerk : Mapped[int] = column(Integer, default=0)
-    chargerPerk : Mapped[int] = column(Integer, default=0)
-    tankPerk : Mapped[int] = column(Integer, default=0)
+    boomerPerk : Mapped[str] = column(String(64))
+    smokerPerk : Mapped[str] = column(String(64))
+    hunterPerk : Mapped[str] = column(String(64))
+    jockeyPerk : Mapped[str] = column(String(64))
+    spitterPerk : Mapped[str] = column(String(64))
+    chargerPerk : Mapped[str] = column(String(64))
+    tankPerk : Mapped[str] = column(String(64))
 
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
 
