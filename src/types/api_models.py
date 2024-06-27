@@ -25,5 +25,14 @@ class PrivilegeStatus(BaseModel):
     activeUntil : datetime.datetime
     userId : int
 
+class PrivilegesList(BaseModel):
+    owner: bool = False
+    admin: bool = False
+    moderator: bool = False
+    soundpad: bool = False
+    mediaPlayer: bool = False
+    vip: bool = False
+
+
 
     

@@ -43,7 +43,7 @@ class PerkSet(Base):
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
 
     userId : Mapped[int] = column(ForeignKey('user.id'))
-    user : Mapped["User"] = relationship(back_populates='perks')
+    user : Mapped["User"] = relationship(back_populates='perks', cascade='all,delete')
 
 #
 # Access Levels:
@@ -66,7 +66,7 @@ class PrivilegeStatus(Base):
     id : Mapped[int] = column(primary_key=True, autoincrement=True)
 
     userId : Mapped[int] = column(ForeignKey('user.id'))
-    user : Mapped["User"] = relationship(back_populates='privileges')
+    user : Mapped["User"] = relationship(back_populates='privileges', cascade='all,delete')
 
     privilegeId : Mapped[int] = column(ForeignKey('privilegeType.id'))
     privilege : Mapped["PrivilegeType"] = relationship(back_populates='statuses')

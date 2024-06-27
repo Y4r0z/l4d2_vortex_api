@@ -48,3 +48,8 @@ def set_perks(steam_id:str, perks: Schemas.PerkSet, token: str = Depends(require
         user = Crud.create_user(db, steam_id)
     perks = Crud.set_perks(db, user.id, perks)
     return perks
+
+@api.get('/privilege', response_model=Schemas.PrivilegesList)
+def get_privileges(steam_id: str, db: Session = Depends(get_db)):
+    user = getUser(db, steam_id)
+    return Crud.get_privileges(db, user.id)
