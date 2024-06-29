@@ -15,7 +15,12 @@ PrivilegeTypes = {
     'moderator': PrivilegeType(id=3,accessLevel=2,name='moderator',description='Server/Discord moderator'),
     'soundpad': PrivilegeType(id=4, accessLevel=5, name='soundpad', description='Ability to use SoundPad'),
     'media_player': PrivilegeType(id=5, accessLevel=5, name='media_player', description='Ability to use media player'),
-    'vip': PrivilegeType(id=6, accessLevel=4, name='vip', description='VIP features')
+    'vip': PrivilegeType(id=6, accessLevel=4, name='vip', description='VIP features'),
+    'premium': PrivilegeType(id=7, accessLevel=4, name='premium', description='Premium features'),
+    'legend': PrivilegeType(id=8, accessLevel=4, name='legend', description='Legend features'),
+    'customPrefix': PrivilegeType(id=9, accessLevel=5, name='custom_prefix', description='Custom chat prefix'),
+    'welcomePhrase': PrivilegeType(id=10, accessLevel=5, name='welcome_phrase', description='Welcome phrase on join')
+    
 }
 
 Privileges = {

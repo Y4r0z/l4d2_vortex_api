@@ -3,6 +3,7 @@ import src.database.models as Models
 import src.types.api_models as Schemas
 import src.database.predefined as Predefined
 import datetime
+from typing import List
 
 def get_user(db: Session, steam_id : str):
     return db.query(Models.User).filter(Models.User.steamId == steam_id).first()
@@ -27,7 +28,7 @@ def set_perks(db:Session, user_id : int, perks : Schemas.PerkSet) -> Models.Perk
     db.refresh(perkSet)
     return perkSet
 
-def check_token(db: Session, token : str):
+def check_token(db: Session, token : str, accessLevel:int = 0):
     found = db.query(Models.AuthToken).filter(Models.AuthToken.token == token).first()
     return found is not None
 
@@ -46,6 +47,12 @@ def get_privileges(db: Session, user_id : int) -> Schemas.PrivilegesList:
     prv.soundpad = __checkPriv(db, user_id, Predefined.PrivilegeTypes['soundpad'].id)
     prv.mediaPlayer = __checkPriv(db, user_id, Predefined.PrivilegeTypes['media_player'].id)
     prv.vip = __checkPriv(db, user_id, Predefined.PrivilegeTypes['vip'].id)
+    prv.premium = __checkPriv(db, user_id, Predefined.PrivilegeTypes['premium'].id)
+    prv.legend = __checkPriv(db, user_id, Predefined.PrivilegeTypes['legend'].id)
+    phrase = db.query(Models.WelcomePhrase).filter(Models.WelcomePhrase.userId == user_id).first()
+    prv.welcomePhrase = phrase.phrase if __checkPriv(db, user_id, Predefined.PrivilegeTypes['welcomePhrase'].id) and phrase is not None else ""
+    prefix = db.query(Models.CustomPrefix).filter(Models.CustomPrefix.userId == user_id).first()
+    prv.customPrefix = prefix.prefix if __checkPriv(db, user_id, Predefined.PrivilegeTypes['customPrefix'].id) and prefix is not None else ""
     return prv
 
 def add_privilege(db: Session, user_id: int, priv_id : int, until : datetime.datetime) -> Models.PrivilegeStatus:
@@ -54,3 +61,33 @@ def add_privilege(db: Session, user_id: int, priv_id : int, until : datetime.dat
     db.commit()
     db.refresh(priv)
     return priv
+
+def get_privilegeType(db: Session, priv_id : int) -> Models.PrivilegeType:
+    priv = db.query(Models.PrivilegeType).filter(Models.PrivilegeType.id == priv_id).first()
+    return priv
+
+def get_privilegeTypes(db: Session) -> List[Models.PrivilegeType]:
+    priv = db.query(Models.PrivilegeType).all()
+    return priv
+
+def set_welcomePhrase(db: Session, user_id: int, phrase: str) -> Models.WelcomePhrase:
+    obj = db.query(Models.WelcomePhrase).filter(Models.WelcomePhrase.userId == user_id).first()
+    if obj is None:
+        obj = Models.WelcomePhrase(userId = user_id, phrase = phrase)
+        db.add(obj)
+    else:
+        obj.phrase = phrase
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+def set_customPrefix(db: Session, user_id: int, prefix: str) -> Models.CustomPrefix:
+    obj = db.query(Models.CustomPrefix).filter(Models.CustomPrefix.userId == user_id).first()
+    if obj is None:
+        obj = Models.CustomPrefix(userId = user_id, prefix = prefix)
+        db.add(obj)
+    else:
+        obj.prefix = prefix
+    db.commit()
+    db.refresh(obj)
+    return obj

@@ -32,6 +32,10 @@ class PrivilegesList(BaseModel):
     soundpad: bool = False
     mediaPlayer: bool = False
     vip: bool = False
+    premium: bool = False
+    legend: bool = False
+    customPrefix:str = ""
+    welcomePhrase: str = ""
 
 
 

@@ -21,6 +21,8 @@ class User(Base):
     perks : Mapped[List["PerkSet"]] = relationship(back_populates='user')
     privileges : Mapped[List["PrivilegeStatus"]] = relationship(back_populates='user')
     tokens : Mapped[List["AuthToken"]] = relationship(back_populates='user')
+    welcomePhrases : Mapped[List["WelcomePhrase"]] = relationship(back_populates='user')
+    customPrefixes : Mapped[List["CustomPrefix"]] = relationship(back_populates='user')
 
 
 class PerkSet(Base):
@@ -81,6 +83,22 @@ class AuthToken(Base):
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='tokens')
 
+
+
+class WelcomePhrase(Base):
+    __tablename__ = "welcomePhrase"
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    phrase : Mapped[str] = column(String(256), nullable=False)
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship(back_populates='welcomePhrases')
+
+
+class CustomPrefix(Base):
+    __tablename__ = "customPrefix"
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    prefix : Mapped[str] = column(String(64), nullable=False)
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship(back_populates='customPrefixes')
 
 
 
