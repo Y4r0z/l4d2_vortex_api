@@ -16,11 +16,13 @@ class PerkSet(BaseModel):
     tankPerk: str
 
 class PrivilegeType(BaseModel):
+    id : int
     accessLevel : int = 100
     name : str
     description : str | None
 
 class PrivilegeStatus(BaseModel):
+    id : int
     privilege : PrivilegeType
     activeUntil : datetime.datetime
     userId : int
@@ -36,6 +38,10 @@ class PrivilegesList(BaseModel):
     legend: bool = False
     customPrefix:str = ""
     welcomePhrase: str = ""
+
+class User(BaseModel):
+    id : int
+    steamId : str
 
 
 

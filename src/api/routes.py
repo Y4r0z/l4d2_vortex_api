@@ -57,6 +57,17 @@ def get_privileges(steam_id: str, db: Session = Depends(get_db)):
     user = getUser(db, steam_id)
     return Crud.get_privileges(db, user.id)
 
+@api.get('/privilege/all', response_model=List[Schemas.PrivilegeStatus])
+def get_privileges(steam_id: str, db: Session = Depends(get_db)):
+    user = getUser(db, steam_id)
+    return Crud.get_privilegeStatuses(db, user.id)
+
+@api.delete('/privilege')
+def remove_privilege(id: int, db: Session = Depends(get_db)):
+    if not Crud.get_privilegeStatus(db, id): raise HTTPException(status_code=404, detail="Privilege not found!")
+    Crud.delete_privilegeStatus(db, id)
+    return "removed"
+
 @api.post('/privilege', response_model=Schemas.PrivilegeStatus)
 def set_privilege(steam_id: str, privilege_id, until: datetime.datetime, db: Session = Depends(get_db), token: str = Depends(requireToken)):
     checkToken(db, token)
@@ -64,6 +75,14 @@ def set_privilege(steam_id: str, privilege_id, until: datetime.datetime, db: Ses
     priv = Crud.get_privilegeType(db, privilege_id)
     if not priv: raise HTTPException(status_code=404, detail="Privilege not found!")
     return Crud.add_privilege(db, user.id, priv.id, until)
+
+@api.put('/privilege', response_model=Schemas.PrivilegeStatus)
+def edit_privilege(id: int, privilege_id, until: datetime.datetime, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    checkToken(db, token)
+    if not Crud.get_privilegeStatus(db, id): raise HTTPException(status_code=404, detail=f"Privilege status with id={id} is NOT FOUND!")
+    if not Crud.get_privilegeType(db, privilege_id): raise HTTPException(status_code=404, detail=f"Privilege type with id={privilege_id} is NOT FOUND!")
+    return Crud.edit_privilegeStatus(db, id, privilege_id, until)
+
 
 @api.post('/privilege/welcome_phrase')
 def set_welcomePhrase(steam_id: str, phrase:str, db: Session = Depends(get_db), token: str = Depends(requireToken)):
@@ -82,3 +101,12 @@ def set_welcomePhrase(steam_id: str, prefix:str, db: Session = Depends(get_db), 
 @api.get('/privilege/types', response_model=List[Schemas.PrivilegeType])
 def get_privilegeTypes(db: Session = Depends(get_db)):
     return Crud.get_privilegeTypes(db)
+
+@api.get('/user/search', response_model=List[Schemas.User])
+def get_user(query : str, db: Session = Depends(get_db)):
+    return Crud.find_users(db, query)
+
+@api.get('/check_token')
+def check_token(db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    checkToken(db, token)
+    return "token is valid"

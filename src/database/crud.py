@@ -5,20 +5,20 @@ import src.database.predefined as Predefined
 import datetime
 from typing import List
 
-def get_user(db: Session, steam_id : str):
+def get_user(db: Session, steam_id: str):
     return db.query(Models.User).filter(Models.User.steamId == steam_id).first()
 
-def create_user(db : Session, steam_id : str) -> Models.User:
+def create_user(db: Session, steam_id: str) -> Models.User:
     user = Models.User(steamId=steam_id)
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
 
-def get_perks(db: Session, user_id : int) -> Models.PerkSet | None:
+def get_perks(db: Session, user_id: int) -> Models.PerkSet | None:
     return db.query(Models.PerkSet).filter(Models.PerkSet.userId == user_id).order_by(Models.PerkSet.time.desc()).first()
 
-def set_perks(db:Session, user_id : int, perks : Schemas.PerkSet) -> Models.PerkSet:
+def set_perks(db:Session, user_id: int, perks: Schemas.PerkSet) -> Models.PerkSet:
     perkSet = Models.PerkSet(
         **perks.model_dump(),
         userId = user_id
@@ -28,7 +28,7 @@ def set_perks(db:Session, user_id : int, perks : Schemas.PerkSet) -> Models.Perk
     db.refresh(perkSet)
     return perkSet
 
-def check_token(db: Session, token : str, accessLevel:int = 0):
+def check_token(db: Session, token: str, accessLevel:int = 0):
     found = db.query(Models.AuthToken).filter(Models.AuthToken.token == token).first()
     return found is not None
 
@@ -39,7 +39,7 @@ def __checkPriv(db: Session, user_id: int, priv_id: int):
     if prv is None: return False
     return prv.activeUntil > datetime.datetime.now()
 
-def get_privileges(db: Session, user_id : int) -> Schemas.PrivilegesList:
+def get_privileges(db: Session, user_id: int) -> Schemas.PrivilegesList:
     prv = Schemas.PrivilegesList()
     prv.owner = __checkPriv(db, user_id, Predefined.PrivilegeTypes['owner'].id)
     prv.admin = __checkPriv(db, user_id, Predefined.PrivilegeTypes['admin'].id)
@@ -55,20 +55,41 @@ def get_privileges(db: Session, user_id : int) -> Schemas.PrivilegesList:
     prv.customPrefix = prefix.prefix if __checkPriv(db, user_id, Predefined.PrivilegeTypes['customPrefix'].id) and prefix is not None else ""
     return prv
 
-def add_privilege(db: Session, user_id: int, priv_id : int, until : datetime.datetime) -> Models.PrivilegeStatus:
+def add_privilege(db: Session, user_id: int, priv_id: int, until: datetime.datetime) -> Models.PrivilegeStatus:
     priv = Models.PrivilegeStatus(userId=user_id, privilegeId=priv_id, activeUntil=until)
     db.add(priv)
     db.commit()
     db.refresh(priv)
     return priv
 
-def get_privilegeType(db: Session, priv_id : int) -> Models.PrivilegeType:
+def get_privilegeType(db: Session, priv_id: int) -> Models.PrivilegeType:
     priv = db.query(Models.PrivilegeType).filter(Models.PrivilegeType.id == priv_id).first()
     return priv
 
 def get_privilegeTypes(db: Session) -> List[Models.PrivilegeType]:
     priv = db.query(Models.PrivilegeType).all()
     return priv
+
+def get_privilegeStatus(db: Session, privStatus_id: int):
+    privStatus = db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.id == privStatus_id).first()
+    return privStatus
+
+def get_privilegeStatuses(db: Session, user_id: int) -> List[Models.PrivilegeStatus]:
+    privs = db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.userId == user_id).all()
+    return privs
+
+def delete_privilegeStatus(db: Session, priv_id: int):
+    db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.id == priv_id).delete()
+    db.commit()
+
+def edit_privilegeStatus(db: Session, privStatus_id: int, priv_id: int, until: datetime.datetime) -> Models.PrivilegeStatus:
+    priv = db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.id == privStatus_id).first()
+    priv.privilegeId = priv_id
+    priv.activeUntil = until
+    db.commit()
+    db.refresh(priv)
+    return priv
+
 
 def set_welcomePhrase(db: Session, user_id: int, phrase: str) -> Models.WelcomePhrase:
     obj = db.query(Models.WelcomePhrase).filter(Models.WelcomePhrase.userId == user_id).first()
@@ -91,3 +112,7 @@ def set_customPrefix(db: Session, user_id: int, prefix: str) -> Models.CustomPre
     db.commit()
     db.refresh(obj)
     return obj
+
+def find_users(db: Session, query: str) -> List[Models.User]:
+    users = db.query(Models.User).filter(Models.User.steamId.like(f'%{query}%')).limit(10)
+    return users
