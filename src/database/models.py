@@ -7,7 +7,7 @@ import os
 from sqlalchemy import create_engine
 
 
-engine = create_engine(os.environ.get("SQL_CONNECT_STRING"))
+engine = create_engine(os.environ.get("SQL_CONNECT_STRING") or "")
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
@@ -23,6 +23,7 @@ class User(Base):
     tokens : Mapped[List["AuthToken"]] = relationship(back_populates='user')
     welcomePhrases : Mapped[List["WelcomePhrase"]] = relationship(back_populates='user')
     customPrefixes : Mapped[List["CustomPrefix"]] = relationship(back_populates='user')
+    balance : Mapped["Balance"] = relationship(back_populates='user')
 
 
 class PerkSet(Base):
@@ -101,5 +102,31 @@ class CustomPrefix(Base):
     user : Mapped["User"] = relationship(back_populates='customPrefixes')
 
 
+class Balance(Base):
+    __tablename__ = "balance"
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship(back_populates='balance')
+    value : Mapped["int"] = column(Integer, default=0)
+    transactions: Mapped[List["Transaction"]] = relationship(back_populates='balance')
 
-    
+class Transaction(Base):
+    __tablename__ = "transaction"
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    balanceId: Mapped[int] = column(ForeignKey('balance.id'))
+    balance: Mapped["Balance"] = relationship(back_populates='transactions')
+    value: Mapped[int] = column(Integer, default=0)
+    description: Mapped[str] = column(String(128), default="none")
+    time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+
+class DuplexTransaction(Base):
+    __tablename__ = 'duplexTransaction'
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    sourceId: Mapped[int] = column(ForeignKey('balance.id'))
+    targetId: Mapped[int] = column(ForeignKey('balance.id'))
+    source: Mapped["Balance"] = relationship('Balance', foreign_keys='DuplexTransaction.sourceId')
+    target: Mapped["Balance"] = relationship('Balance', foreign_keys='DuplexTransaction.targetId')
+    value: Mapped[int] = column(Integer, default=0)
+    description: Mapped[str] = column(String(128), default="none")
+    time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+

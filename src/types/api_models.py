@@ -44,5 +44,23 @@ class User(BaseModel):
     steamId : str
 
 
+class Balance(BaseModel):
+    id: int
+    user: User
+    value : int
+
+class Transaction(BaseModel):
+    id: int
+    balance: Balance
+    value: int
+    description: str
+
+class DuplexTransaction(BaseModel):
+    id: int
+    source: Balance
+    target: Balance
+    value: int
+    description: str
+
 
     

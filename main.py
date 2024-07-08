@@ -4,6 +4,7 @@ from src.database.models import Base, engine
 import src.database.predefined as Predefiend
 from fastapi import  FastAPI
 from src.api.routes import api
+from src.api.balance import balance_api
 
 def createData():
     with Session(engine) as session:
@@ -23,3 +24,4 @@ Base.metadata.create_all(bind=engine)
 createData()
 app = FastAPI()
 app.include_router(api)
+app.include_router(balance_api, prefix='/balance')

@@ -62,7 +62,7 @@ def add_privilege(db: Session, user_id: int, priv_id: int, until: datetime.datet
     db.refresh(priv)
     return priv
 
-def get_privilegeType(db: Session, priv_id: int) -> Models.PrivilegeType:
+def get_privilegeType(db: Session, priv_id: int) -> Models.PrivilegeType | None:
     priv = db.query(Models.PrivilegeType).filter(Models.PrivilegeType.id == priv_id).first()
     return priv
 
@@ -82,8 +82,9 @@ def delete_privilegeStatus(db: Session, priv_id: int):
     db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.id == priv_id).delete()
     db.commit()
 
-def edit_privilegeStatus(db: Session, privStatus_id: int, priv_id: int, until: datetime.datetime) -> Models.PrivilegeStatus:
+def edit_privilegeStatus(db: Session, privStatus_id: int, priv_id: int, until: datetime.datetime) -> Models.PrivilegeStatus | None:
     priv = db.query(Models.PrivilegeStatus).filter(Models.PrivilegeStatus.id == privStatus_id).first()
+    if priv is None: return None
     priv.privilegeId = priv_id
     priv.activeUntil = until
     db.commit()
@@ -114,5 +115,5 @@ def set_customPrefix(db: Session, user_id: int, prefix: str) -> Models.CustomPre
     return obj
 
 def find_users(db: Session, query: str) -> List[Models.User]:
-    users = db.query(Models.User).filter(Models.User.steamId.like(f'%{query}%')).limit(10)
+    users = db.query(Models.User).filter(Models.User.steamId.like(f'%{query}%')).limit(10).all()
     return users

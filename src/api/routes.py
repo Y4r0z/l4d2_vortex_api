@@ -1,42 +1,13 @@
 from fastapi import Depends, HTTPException, APIRouter
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from src.database.models import SessionLocal
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import datetime
+from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
 
-
-security = HTTPBearer()
 
 api = APIRouter()
-
-def getUser(db : Session, steam_id : str) -> Models.User:
-    user = Crud.get_user(db, steam_id)
-    if not user: raise HTTPException(status_code=404, detail='User not found!')
-    return user
-
-def requireToken(auth : Optional[HTTPAuthorizationCredentials] = Depends(security)) -> str:
-    if auth is None: raise HTTPException(status_code=401, detail="Bearer token not found!")
-    return auth.credentials
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def getOrCreateUser(db: Session, steam_id:str) -> Models.User:
-    user = Crud.get_user(db, steam_id)
-    if not user:
-        user = Crud.create_user(db, steam_id)
-    return user
-
-def checkToken(db:Session, token:str):
-    if not Crud.check_token(db, token): raise HTTPException(status_code=401, detail="Bearer token is not valid!")
 
 @api.get('/perks', response_model=Schemas.PerkSet)
 def get_perks(steam_id: str, db: Session = Depends(get_db)):
@@ -49,8 +20,8 @@ def get_perks(steam_id: str, db: Session = Depends(get_db)):
 def set_perks(steam_id:str, perks: Schemas.PerkSet, token: str = Depends(requireToken), db: Session = Depends(get_db)):
     checkToken(db, token)
     user = getOrCreateUser(db, steam_id)
-    perks = Crud.set_perks(db, user.id, perks)
-    return perks
+    perksObj = Crud.set_perks(db, user.id, perks)
+    return perksObj
 
 @api.get('/privilege', response_model=Schemas.PrivilegesList)
 def get_privileges(steam_id: str, db: Session = Depends(get_db)):
@@ -58,7 +29,7 @@ def get_privileges(steam_id: str, db: Session = Depends(get_db)):
     return Crud.get_privileges(db, user.id)
 
 @api.get('/privilege/all', response_model=List[Schemas.PrivilegeStatus])
-def get_privileges(steam_id: str, db: Session = Depends(get_db)):
+def get_privileges_all(steam_id: str, db: Session = Depends(get_db)):
     user = getUser(db, steam_id)
     return Crud.get_privilegeStatuses(db, user.id)
 
@@ -92,7 +63,7 @@ def set_welcomePhrase(steam_id: str, phrase:str, db: Session = Depends(get_db), 
     return obj.phrase
 
 @api.post('/privilege/custom_prefix')
-def set_welcomePhrase(steam_id: str, prefix:str, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+def set_customPrefix(steam_id: str, prefix:str, db: Session = Depends(get_db), token: str = Depends(requireToken)):
     checkToken(db, token)
     user = getOrCreateUser(db, steam_id)
     obj = Crud.set_customPrefix(db, user.id, prefix)
