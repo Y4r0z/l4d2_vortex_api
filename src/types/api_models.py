@@ -62,5 +62,7 @@ class DuplexTransaction(BaseModel):
     value: int
     description: str
 
-
-    
+class SteamDiscordLink(BaseModel):
+    id: int
+    discordId: str
+    user: User

@@ -117,3 +117,24 @@ def set_customPrefix(db: Session, user_id: int, prefix: str) -> Models.CustomPre
 def find_users(db: Session, query: str) -> List[Models.User]:
     users = db.query(Models.User).filter(Models.User.steamId.like(f'%{query}%')).limit(10).all()
     return users
+
+def find_discord(db: Session, query: str) -> List[Models.SteamDiscordLink]:
+    links = db.query(Models.SteamDiscordLink).filter(Models.SteamDiscordLink.discordId.like(f'%{query}%')).limit(10).all()
+    return links
+
+def get_discord(db: Session, discord_id: str) -> Models.SteamDiscordLink | None:
+    link = db.query(Models.SteamDiscordLink).filter(Models.SteamDiscordLink.discordId == discord_id).first()
+    return link
+
+def create_discord(db: Session, user : Models.User, discord_id: str) -> Models.SteamDiscordLink:
+    link = Models.SteamDiscordLink(discordId=discord_id, user=user)
+    db.add(link)
+    db.commit()
+    db.refresh(link)
+    return link
+
+def delete_discord(db: Session, discord_id: str):
+    link = get_discord(db, discord_id)
+    if link is None: return
+    db.delete(link)
+    db.commit()

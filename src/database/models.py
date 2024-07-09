@@ -24,6 +24,7 @@ class User(Base):
     welcomePhrases : Mapped[List["WelcomePhrase"]] = relationship(back_populates='user')
     customPrefixes : Mapped[List["CustomPrefix"]] = relationship(back_populates='user')
     balance : Mapped["Balance"] = relationship(back_populates='user')
+    discordLink : Mapped["SteamDiscordLink"] = relationship(back_populates='user')
 
 
 class PerkSet(Base):
@@ -130,3 +131,10 @@ class DuplexTransaction(Base):
     description: Mapped[str] = column(String(128), default="none")
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
 
+
+class SteamDiscordLink(Base):
+    __tablename__ = 'steamDiscordLink'
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship(back_populates='discordLink')
+    discordId : Mapped[int] = column(String(64))

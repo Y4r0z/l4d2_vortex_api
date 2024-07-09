@@ -5,6 +5,7 @@ import src.database.predefined as Predefiend
 from fastapi import  FastAPI
 from src.api.routes import api
 from src.api.balance import balance_api
+from src.api.discord import discord_api
 
 def createData():
     with Session(engine) as session:
@@ -25,3 +26,4 @@ createData()
 app = FastAPI()
 app.include_router(api)
 app.include_router(balance_api, prefix='/balance')
+app.include_router(discord_api, prefix='/discord')
