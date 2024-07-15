@@ -1,11 +1,12 @@
 from sqlalchemy.orm import Session
-from sqlalchemy_utils import database_exists, create_database
+from sqlalchemy_utils import database_exists, create_database # type: ignore
 from src.database.models import Base, engine
 import src.database.predefined as Predefiend
 from fastapi import  FastAPI
 from src.api.routes import api
 from src.api.balance import balance_api
 from src.api.discord import discord_api
+from src.api.chat_logs import logs_api
 
 def createData():
     with Session(engine) as session:
@@ -27,3 +28,4 @@ app = FastAPI()
 app.include_router(api)
 app.include_router(balance_api, prefix='/balance')
 app.include_router(discord_api, prefix='/discord')
+app.include_router(logs_api, prefix='/logs')

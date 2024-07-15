@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Integer, Float, DateTime
+from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column as column, relationship, sessionmaker
 from sqlalchemy.sql import func as sqlFunc
 from typing import List, Optional
@@ -138,3 +138,13 @@ class SteamDiscordLink(Base):
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='discordLink')
     discordId : Mapped[int] = column(String(64))
+
+class ChatLog(Base):
+    __tablename__ = 'chatLogs'
+    id : Mapped[int] = column(primary_key=True, autoincrement=True)
+    steamId : Mapped[str] = column(String(64))
+    text: Mapped[str] = column(Text)
+    time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+    server : Mapped[str] = column(String(32), default='None')
+    team : Mapped[int] = column(SmallInteger, default=0)
+    chatTeam : Mapped[int] = column(SmallInteger, default=0)

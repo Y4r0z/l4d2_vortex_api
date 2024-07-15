@@ -24,3 +24,10 @@ def get_discord(discord_id: str, db: Session = Depends(get_db)):
     link = Crud.get_discord(db, discord_id)
     if link is None: raise HTTPException(404, f'User, linked to the discord id ({discord_id}) not found!')
     return link
+
+@discord_api.get('/steam', response_model=Schemas.SteamDiscordLink)
+def get_discord_by_steam(steam_id: str, db: Session = Depends(get_db)):
+    user = getUser(db, steam_id)
+    link = Crud.get_discord_steam(db, user)
+    if link is None: raise HTTPException(404, f'User, linked to the steam id ({steam_id}) not found!')
+    return link

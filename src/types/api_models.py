@@ -66,3 +66,11 @@ class SteamDiscordLink(BaseModel):
     id: int
     discordId: str
     user: User
+
+class ChatLog(BaseModel):
+    steamId: str
+    text: str
+    time: datetime.datetime
+    server: str = 'None'
+    team: int = 0
+    chatTeam: int = 0

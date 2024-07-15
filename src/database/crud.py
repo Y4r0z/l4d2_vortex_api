@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 import src.database.models as Models
 import src.types.api_models as Schemas
 import src.database.predefined as Predefined
@@ -138,3 +139,24 @@ def delete_discord(db: Session, discord_id: str):
     if link is None: return
     db.delete(link)
     db.commit()
+
+def get_discord_steam(db: Session, user: Models.User) -> Models.SteamDiscordLink | None:
+    link = db.query(Models.SteamDiscordLink).filter(Models.SteamDiscordLink.userId == user.id).first()
+    return link
+
+
+def create_logs(db: Session, logs: List[Schemas.ChatLog]):
+    for log in logs:
+        obj = Models.ChatLog(steamId=log.steamId, text=log.text, time=log.time, server=log.server, team=log.team, chatTeam=log.chatTeam)
+        db.add(obj)
+    db.commit()
+
+def get_logs(db: Session, query: str, steam_id: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
+    count = min(count, 512)
+    logs = db.query(Models.ChatLog) \
+        .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
+        .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
+        .filter(Models.ChatLog.text.like(f'%{query}%')) \
+        .order_by(Models.ChatLog.time.desc()) \
+        .offset(offset).limit(count).all()
+    return logs
