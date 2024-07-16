@@ -151,12 +151,13 @@ def create_logs(db: Session, logs: List[Schemas.ChatLog]):
         db.add(obj)
     db.commit()
 
-def get_logs(db: Session, query: str, steam_id: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
+def get_logs(db: Session, text: str, steam_id: str, server: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
     count = min(count, 512)
     logs = db.query(Models.ChatLog) \
         .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
         .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
-        .filter(Models.ChatLog.text.like(f'%{query}%')) \
+        .filter(Models.ChatLog.text.like(f'%{text}%')) \
+        .filter(Models.ChatLog.text.like(f'%{server}%')) \
         .order_by(Models.ChatLog.time.desc()) \
         .offset(offset).limit(count).all()
     return logs

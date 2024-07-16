@@ -8,6 +8,7 @@ dnspython==2.6.1
 email_validator==2.2.0
 fastapi==0.111.0
 fastapi-cli==0.0.4
+fastapi-filter==2.0.0
 greenlet==3.0.3
 gunicorn==22.0.0
 h11==0.14.0
@@ -19,6 +20,8 @@ Jinja2==3.1.4
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
 mdurl==0.1.2
+mypy==1.10.1
+mypy-extensions==1.0.0
 mysql-connector-python==8.4.0
 orjson==3.10.5
 packaging==24.1

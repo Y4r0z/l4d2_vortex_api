@@ -2,8 +2,9 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from src.database.models import SessionLocal
 from src.database import crud as Crud, models as Models
-from sqlalchemy.orm import Session
-from typing import Optional
+from sqlalchemy.orm import Session, Query
+from typing import Optional, TypeVar
+
 
 security = HTTPBearer()
 

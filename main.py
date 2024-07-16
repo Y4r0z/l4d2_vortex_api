@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy_utils import database_exists, create_database # type: ignore
-from src.database.models import Base, engine
+from src.database.models import Base, engine, Balance
 import src.database.predefined as Predefiend
 from fastapi import  FastAPI
 from src.api.routes import api
@@ -29,3 +29,4 @@ app.include_router(api)
 app.include_router(balance_api, prefix='/balance')
 app.include_router(discord_api, prefix='/discord')
 app.include_router(logs_api, prefix='/logs')
+
