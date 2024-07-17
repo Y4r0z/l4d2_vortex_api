@@ -157,7 +157,7 @@ def get_logs(db: Session, text: str, steam_id: str, server: str, offset: int, co
         .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
         .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
         .filter(Models.ChatLog.text.like(f'%{text}%')) \
-        .filter(Models.ChatLog.text.like(f'%{server}%')) \
+        .filter(Models.ChatLog.server.like(f'%{server}%')) \
         .order_by(Models.ChatLog.time.desc()) \
         .offset(offset).limit(count).all()
     return logs

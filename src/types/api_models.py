@@ -68,7 +68,7 @@ class SteamDiscordLink(BaseModel):
     user: User
 
 class ChatLog(BaseModel):
-    id: int
+    id: int = 0
     steamId: str
     text: str
     time: datetime.datetime
