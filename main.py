@@ -22,8 +22,11 @@ def createData():
 
 
 if not database_exists(engine.url): create_database(engine.url)
-Base.metadata.create_all(bind=engine)
-createData()
+#Base.metadata.create_all(bind=engine)
+try:
+    createData()
+except:
+    print('Can not create initial data in database')
 app = FastAPI()
 app.include_router(api)
 app.include_router(balance_api, prefix='/balance')

@@ -12,6 +12,9 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 10s
       retries: 5
+    volumes:
+    - vortex-l4d2-database:/var/lib/mysql
+    
   l4d2vortexapi:
     container_name: l4d2vortexapi
     links:
@@ -25,6 +28,7 @@ services:
     ports:
       - 3005:3005
     restart: on-failure
+  
   phpmyadmin:
     image: phpmyadmin:latest
     links:
@@ -34,3 +38,6 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+volumes:
+  vortex-l4d2-database:
