@@ -147,15 +147,16 @@ def get_discord_steam(db: Session, user: Models.User) -> Models.SteamDiscordLink
 
 def create_logs(db: Session, logs: List[Schemas.ChatLog]):
     for log in logs:
-        obj = Models.ChatLog(steamId=log.steamId, text=log.text, time=log.time, server=log.server, team=log.team, chatTeam=log.chatTeam)
+        obj = Models.ChatLog(steamId=log.steamId, nickname=log.nickname, text=log.text, time=log.time, server=log.server, team=log.team, chatTeam=log.chatTeam)
         db.add(obj)
     db.commit()
 
-def get_logs(db: Session, text: str, steam_id: str, server: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
+def get_logs(db: Session, text: str, steam_id: str, nick: str, server: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
     count = min(count, 512)
     logs = db.query(Models.ChatLog) \
         .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
         .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
+        .filter(Models.ChatLog.nickname.like(f'%{nick}')) \
         .filter(Models.ChatLog.text.like(f'%{text}%')) \
         .filter(Models.ChatLog.server.like(f'%{server}%')) \
         .order_by(Models.ChatLog.time.desc()) \

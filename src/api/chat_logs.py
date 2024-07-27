@@ -22,13 +22,14 @@ def create_log(logs: List[Schemas.ChatLog], db: Session = Depends(get_db), token
 def get_logs(
     text: str = '',
     steam_id: str = '',
+    nickname: str = '',
     server: str = '',
     offset: int = 0,
     limit: int = 25,
     start_time: datetime.datetime = datetime.datetime(2000, 1, 1),
     end_time: datetime.datetime = datetime.datetime(2100, 1, 1),
     db: Session = Depends(get_db)):
-    return Crud.get_logs(db, text, steam_id, server, offset, limit, start_time, end_time)
+    return Crud.get_logs(db, text, steam_id, nickname, server, offset, limit, start_time, end_time)
 
 # @logs_api.get('', response_model=list[Schemas.ChatLog])
 # def test_logs(

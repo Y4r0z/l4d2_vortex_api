@@ -1,1 +1,2 @@
-docker compose up -d --no-deps --build l4d2vortexapi
+alembic upgrade head
+docker compose up -d --build
