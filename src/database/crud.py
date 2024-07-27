@@ -156,7 +156,7 @@ def get_logs(db: Session, text: str, steam_id: str, nick: str | None, server: st
     logs = db.query(Models.ChatLog) \
         .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
         .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
-        .filter(Models.ChatLog.nickname.like(f'%{nick}') if nick is not None else Models.ChatLog.nickname == None) \
+        .filter(Models.ChatLog.nickname.like(f'%{nick}') if nick is not None else Models.ChatLog.id > 0) \
         .filter(Models.ChatLog.text.like(f'%{text}%')) \
         .filter(Models.ChatLog.server.like(f'%{server}%')) \
         .order_by(Models.ChatLog.time.desc()) \
