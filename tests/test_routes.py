@@ -101,7 +101,8 @@ def test_pay():
 
 logs = [{
     'steamId': 'test_client',
-    'text': 'testign stuff',
+    'nickname': 'test_nickname',
+    'text': 'testing some stuff',
     'time': datetime.datetime.now().isoformat(),
     'server': 'test',
     'team': 1,

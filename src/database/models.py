@@ -143,6 +143,7 @@ class ChatLog(Base):
     __tablename__ = 'chatLogs'
     id : Mapped[int] = column(primary_key=True, autoincrement=True)
     steamId : Mapped[str] = column(String(64))
+    nickname: Mapped[str] = column(String(64), nullable=True, default=None)
     text: Mapped[str] = column(Text)
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
     server : Mapped[str] = column(String(32), default='None')
