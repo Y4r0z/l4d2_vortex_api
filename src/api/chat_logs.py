@@ -11,7 +11,7 @@ from src.api.filter import LogsFilter, FilterDepends, Pagination
 logs_api = APIRouter()
 
 
-@logs_api.post('', status_code=201)
+@logs_api.post('')
 def create_log(logs: List[Schemas.ChatLog], db: Session = Depends(get_db), token: str = Depends(requireToken)):
     checkToken(db, token)
     Crud.create_logs(db, logs)
