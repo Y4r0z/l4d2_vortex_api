@@ -70,7 +70,7 @@ class SteamDiscordLink(BaseModel):
 class ChatLog(BaseModel):
     id: int = 0
     steamId: str
-    nickname: str = None
+    nickname: str | None = None
     text: str
     time: datetime.datetime
     server: str = 'None'

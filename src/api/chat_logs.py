@@ -22,7 +22,7 @@ def create_log(logs: List[Schemas.ChatLog], db: Session = Depends(get_db), token
 def get_logs(
     text: str = '',
     steam_id: str = '',
-    nickname: str = '',
+    nickname: str | None = None,
     server: str = '',
     offset: int = 0,
     limit: int = 25,
