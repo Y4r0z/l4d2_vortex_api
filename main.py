@@ -7,6 +7,8 @@ from src.api.routes import api
 from src.api.balance import balance_api
 from src.api.discord import discord_api
 from src.api.chat_logs import logs_api
+from src.api.score import score_api
+
 
 def createData():
     with Session(engine) as session:
@@ -32,4 +34,5 @@ app.include_router(api)
 app.include_router(balance_api, prefix='/balance')
 app.include_router(discord_api, prefix='/discord')
 app.include_router(logs_api, prefix='/logs')
+app.include_router(score_api, prefix='/score')
 

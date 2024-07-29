@@ -122,3 +122,52 @@ def test_discord():
     assert r2.status_code == 200
     r3 = client.get('/discord/steam?steam_id=test_client')
     assert r3.status_code == 200
+
+roundScore = {
+    'agression': 11,
+    'support': 22,
+    'perks': 33,
+    'team': 1,
+    'time': datetime.datetime.now().replace(microsecond=0).isoformat(),
+}
+def test_round_score():
+    r1 = client.post('/score/round?steam_id=test_client', json=roundScore)
+    assert r1.status_code == 200
+    score_id = r1.json()['id']
+    r2 = client.get(f'/score/round?score_id={score_id}')
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2.json()['id'] == score_id and r2j['agression'] == roundScore['agression'] \
+        and r2j['support'] == roundScore['support'] and r2j['perks'] == roundScore['perks'] and r2j['team'] == roundScore['team']
+    r3 = client.get(f"/score/round/search?steam_id=test_client&search={roundScore['time'].replace('T', ' ')}")
+    assert r3.status_code == 200
+    assert len(r3.json()) > 0
+    r3j = r3.json()[0]
+    assert r3j['time'] == roundScore['time']
+
+
+playSession = {
+    'timeFrom': datetime.datetime.now().replace(microsecond=0).isoformat(),
+}
+def test_play_session():
+    r1 = client.post('/score/session?steam_id=test_client', json=playSession)
+    assert r1.status_code == 200
+    sid = r1.json()['id']
+    r2 = client.get(f'/score/session?session_id={sid}')
+    assert r2.status_code == 200
+    assert r2.json()['timeFrom'][:16] == playSession['timeFrom'][:16] # секунды округляются на сервере
+
+def test_season():
+    r1 = client.post('/score/season/reset')
+    assert r1.status_code == 200
+    cnt = 4
+    for _ in range(cnt):
+        ri = client.post('/score/round?steam_id=test_client', json={'agression':10, 'support':20, 'perks': 30})
+        assert ri.status_code == 200
+    client.post('/score/season/reset')
+    r2 = client.get('/score/season/search?steam_id=test_client&order_by=-id')
+    assert r2.status_code == 200
+    assert len(r2.json()) > 0
+    r2j = r2.json()[0]
+    sid, a, s, p = r2j['user']['steamId'], r2j['agression'], r2j['support'], r2j['perks']
+    assert sid == 'test_client' and a == 10*4 and s == 20*4 and p == 30*4

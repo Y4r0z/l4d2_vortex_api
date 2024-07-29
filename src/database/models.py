@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger
+from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column as column, relationship, sessionmaker
 from sqlalchemy.sql import func as sqlFunc
 from typing import List, Optional
@@ -12,11 +12,12 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
     pass
-
-
-class User(Base):
-    __tablename__ = "user"
+class IDModel(Base):
+    __abstract__ = True
     id : Mapped[int] = column(primary_key=True, autoincrement=True)
+
+class User(IDModel):
+    __tablename__ = "user"
     steamId : Mapped[str] = column(String(128))
     perks : Mapped[List["PerkSet"]] = relationship(back_populates='user')
     privileges : Mapped[List["PrivilegeStatus"]] = relationship(back_populates='user')
@@ -27,10 +28,8 @@ class User(Base):
     discordLink : Mapped["SteamDiscordLink"] = relationship(back_populates='user')
 
 
-class PerkSet(Base):
+class PerkSet(IDModel):
     __tablename__ = "perkSet"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
-
     survivorPerk1 : Mapped[str] = column(String(64))
     survivorPerk2 : Mapped[str] = column(String(64))
     survivorPerk3 : Mapped[str] = column(String(64))
@@ -56,18 +55,16 @@ class PerkSet(Base):
 #   2 - moderator
 #   3 - jr. moderator
 #   4 - other
-class PrivilegeType(Base):
+class PrivilegeType(IDModel):
     __tablename__ = "privilegeType"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     accessLevel : Mapped[int] = column(Integer)
     name : Mapped[str] = column(String(64))
     description : Mapped[str] = column(String(512), default='')
     statuses : Mapped[List["PrivilegeStatus"]] = relationship(back_populates="privilege")
 
 
-class PrivilegeStatus(Base):
+class PrivilegeStatus(IDModel):
     __tablename__ = "privilegeStatus"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
 
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='privileges', cascade='all,delete')
@@ -78,51 +75,45 @@ class PrivilegeStatus(Base):
     activeUntil : Mapped[datetime.datetime] = column(DateTime(timezone=True), default=sqlFunc.now())
 
 
-class AuthToken(Base):
+class AuthToken(IDModel):
     __tablename__ = "authToken"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     token : Mapped[str] = column(String(256), nullable=False)
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='tokens')
 
 
 
-class WelcomePhrase(Base):
+class WelcomePhrase(IDModel):
     __tablename__ = "welcomePhrase"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     phrase : Mapped[str] = column(String(256), nullable=False)
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='welcomePhrases')
 
 
-class CustomPrefix(Base):
+class CustomPrefix(IDModel):
     __tablename__ = "customPrefix"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     prefix : Mapped[str] = column(String(64), nullable=False)
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='customPrefixes')
 
 
-class Balance(Base):
+class Balance(IDModel):
     __tablename__ = "balance"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='balance')
     value : Mapped["int"] = column(Integer, default=0)
     transactions: Mapped[List["Transaction"]] = relationship(back_populates='balance')
 
-class Transaction(Base):
+class Transaction(IDModel):
     __tablename__ = "transaction"
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     balanceId: Mapped[int] = column(ForeignKey('balance.id'))
     balance: Mapped["Balance"] = relationship(back_populates='transactions')
     value: Mapped[int] = column(Integer, default=0)
     description: Mapped[str] = column(String(128), default="none")
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
 
-class DuplexTransaction(Base):
+class DuplexTransaction(IDModel):
     __tablename__ = 'duplexTransaction'
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     sourceId: Mapped[int] = column(ForeignKey('balance.id'))
     targetId: Mapped[int] = column(ForeignKey('balance.id'))
     source: Mapped["Balance"] = relationship('Balance', foreign_keys='DuplexTransaction.sourceId')
@@ -132,16 +123,14 @@ class DuplexTransaction(Base):
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
 
 
-class SteamDiscordLink(Base):
+class SteamDiscordLink(IDModel):
     __tablename__ = 'steamDiscordLink'
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='discordLink')
     discordId : Mapped[int] = column(String(64))
 
-class ChatLog(Base):
+class ChatLog(IDModel):
     __tablename__ = 'chatLogs'
-    id : Mapped[int] = column(primary_key=True, autoincrement=True)
     steamId : Mapped[str] = column(String(64))
     nickname: Mapped[str] = column(String(64), nullable=True, default=None)
     text: Mapped[str] = column(Text)
@@ -149,3 +138,41 @@ class ChatLog(Base):
     server : Mapped[str] = column(String(32), default='None')
     team : Mapped[int] = column(SmallInteger, default=0)
     chatTeam : Mapped[int] = column(SmallInteger, default=0)
+
+
+class RoundScore(IDModel):
+    __tablename__ = 'roundScore'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='RoundScore.userId')
+    agression: Mapped[int] = column(Integer, default=0)
+    support: Mapped[int] = column(Integer, default=0)
+    perks: Mapped[int] = column(Integer, default=0)
+    team : Mapped[int] = column(SmallInteger, default=0)
+    time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+
+class RoundScorePermanent(IDModel):
+    __tablename__ = 'roundScore_Permanent'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='RoundScorePermanent.userId')
+    agression: Mapped[int] = column(Integer, default=0)
+    support: Mapped[int] = column(Integer, default=0)
+    perks: Mapped[int] = column(Integer, default=0)
+    team : Mapped[int] = column(SmallInteger, default=0)
+    time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+
+class ScoreSeason(IDModel):
+    __tablename__ = 'scoreSeason'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='ScoreSeason.userId')
+    agression: Mapped[int] = column(Integer, default=0)
+    support: Mapped[int] = column(Integer, default=0)
+    perks: Mapped[int] = column(Integer, default=0)
+    date: Mapped[datetime.date] = column(Date)
+
+
+class PlaySession(IDModel):
+    __tablename__ = 'playSession'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='PlaySession.userId')
+    timeFrom : Mapped[datetime.datetime] = column(DateTime(timezone=True))
+    timeTo : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())

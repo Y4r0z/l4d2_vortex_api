@@ -76,3 +76,41 @@ class ChatLog(BaseModel):
     server: str = 'None'
     team: int = 0
     chatTeam: int = 0
+
+
+
+
+class RoundScore:
+    class Input(BaseModel):
+        agression: int = 0
+        support: int = 0
+        perks: int = 0
+        team: int = 0
+        time: datetime.datetime | None = None
+    class Output(BaseModel):
+        id: int
+        user: User
+        agression: int
+        support: int
+        perks: int
+        team: int
+        time: datetime.datetime
+
+class ScoreSeason:
+    class Output(BaseModel):
+        id: int
+        user: User
+        agression: int
+        support: int 
+        perks: int
+        date: datetime.date
+
+class PlaySession:
+    class Input(BaseModel):
+        timeFrom: datetime.datetime
+        timeTo: datetime.datetime | None = None
+    class Output(BaseModel):
+        id: int
+        user: User
+        timeFrom: datetime.datetime
+        timeTo: datetime.datetime
