@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 import datetime
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
+import numpy as np
 
+DROP_COOLDOWN = datetime.timedelta(hours=6)
+DROP_VALUE_MIN = 100
+DROP_VALUE_LOC = 400
+DROP_VALUE_SCALE = 300
 
 balance_api = APIRouter()
 
@@ -65,3 +70,20 @@ def pay_balance(source_steam_id: str, target_steam_id: str, value: int, db: Sess
     db.refresh(transaction)
     return transaction
 
+
+@balance_api.get('/drop', response_model=Schemas.MoneyDrop)
+def drop_money(steam_id: str, db: Session = Depends(get_db)):
+    user = getOrCreateUser(db, steam_id)
+    lastDrop = db.query(Models.MoneyDrop).filter(Models.MoneyDrop.userId == user.id).order_by(Models.MoneyDrop.time.desc()).first()
+    if lastDrop is not None and (lastDrop.time + DROP_COOLDOWN > datetime.datetime.now()):
+        return {'nextDrop':lastDrop.time + DROP_COOLDOWN, 'value':0, 'user':{'steamId': user.steamId, 'id':user.id}}
+    balance = getOrCreateBalance(db, user)
+    value = max(DROP_VALUE_MIN, int(np.random.normal(loc=DROP_VALUE_LOC, scale=DROP_VALUE_SCALE)))
+    time = datetime.datetime.now()
+    dropObj = Models.MoneyDrop(user=user, value=value, time=time)
+    transaction = Models.Transaction(balance=balance, value=value, time=time, description='drop')
+    balance.value += value
+    db.add(dropObj)
+    db.add(transaction)
+    db.commit()
+    return {'nextDrop':time + DROP_COOLDOWN, 'value':value, 'user':{'steamId': user.steamId, 'id':user.id}}

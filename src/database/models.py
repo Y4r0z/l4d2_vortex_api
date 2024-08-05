@@ -176,3 +176,10 @@ class PlaySession(IDModel):
     user : Mapped["User"] = relationship('User', foreign_keys='PlaySession.userId')
     timeFrom : Mapped[datetime.datetime] = column(DateTime(timezone=True))
     timeTo : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+
+class MoneyDrop(IDModel):
+    __tablename__ = 'moneyDrop'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='MoneyDrop.userId')
+    time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+    value: Mapped[int] = column(Integer, default=0)

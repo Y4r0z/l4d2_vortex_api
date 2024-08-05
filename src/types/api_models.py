@@ -114,3 +114,13 @@ class PlaySession:
         user: User
         timeFrom: datetime.datetime
         timeTo: datetime.datetime
+
+
+
+
+class MoneyDrop(BaseModel):
+    user: User
+    value: int
+    nextDrop: datetime.datetime
+    
+
