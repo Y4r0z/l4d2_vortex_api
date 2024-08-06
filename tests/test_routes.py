@@ -176,3 +176,34 @@ def test_season():
 def test_drop():
     r = client.get('/balance/drop?steam_id=test_client')
     assert r.status_code == 200
+
+
+giveaway = {
+    'activeUntil': (datetime.datetime.now() + datetime.timedelta(days=1)).replace(microsecond=0).isoformat(),
+    'useCount': 1,
+    'reward': 20
+}
+
+def test_giveaway():
+    client.post(f'/balance/set?steam_id=test_client2&value=0')
+    r1 = client.post(f'/balance/set?steam_id=test_client&value=100')
+    assert r1.status_code == 200
+    r2 = client.post(f'/balance/giveaway?steam_id=test_client', json=giveaway)
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2j['reward'] == giveaway['reward'] and r2j['maxUseCount'] == giveaway['useCount']
+    r3 = client.get(f'/balance/giveaway/checkout?steam_id=test_client2&giveaway_id={r2j["id"]}')
+    assert r3.status_code == 200
+    r3j = r3.json()
+    assert r3j['status'] == 0 and r3j['curUseCount'] == 1
+    r4 = client.get(f'/balance/giveaway/checkout?steam_id=test_client2&giveaway_id={r2j["id"]}')
+    assert r4.status_code == 400
+    r4j = r4.json()
+    assert r4j['detail']['status'] == 3
+    r5 = client.delete(f'/balance/giveaway?giveaway_id={r2j["id"]}')
+    assert r5.status_code == 200
+    r6 = client.get(f'/balance?steam_id=test_client2')
+    assert r6.json()['value'] == 20
+
+
+    

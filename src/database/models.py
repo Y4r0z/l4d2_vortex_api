@@ -183,3 +183,22 @@ class MoneyDrop(IDModel):
     user : Mapped["User"] = relationship('User', foreign_keys='MoneyDrop.userId')
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
     value: Mapped[int] = column(Integer, default=0)
+
+class Giveaway(IDModel):
+    __tablename__ = 'giveaway'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='Giveaway.userId')
+    timeCreated : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+    activeUntil : Mapped[datetime.datetime] = column(DateTime(timezone=True))
+    maxUseCount: Mapped[int] = column(Integer, default=1)
+    curUseCount: Mapped[int] = column(Integer, default=0)
+    reward: Mapped[int] = column(Integer)
+class GiveawayUse(IDModel):
+    __tablename__ = 'giveawayUse'
+    userId : Mapped[int] = column(ForeignKey('user.id'))
+    user : Mapped["User"] = relationship('User', foreign_keys='GiveawayUse.userId')
+    giveawayId : Mapped[int] = column(ForeignKey('giveaway.id', ondelete='cascade'))
+    giveaway : Mapped["Giveaway"] = relationship('Giveaway', foreign_keys='GiveawayUse.giveawayId', cascade='all,delete')
+    time: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+
+

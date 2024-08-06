@@ -1,6 +1,9 @@
 import datetime
 from pydantic import BaseModel
 
+class StatusCode(BaseModel):
+    status: int = 0
+
 class PerkSet(BaseModel):
     survivorPerk1: str
     survivorPerk2: str
@@ -116,11 +119,26 @@ class PlaySession:
         timeTo: datetime.datetime
 
 
-
-
 class MoneyDrop(BaseModel):
     user: User
     value: int
     nextDrop: datetime.datetime
+    
+
+class Giveaway:
+    class Input(BaseModel):
+        activeUntil: datetime.datetime
+        useCount: int = 1
+        reward: int
+    class Output(BaseModel):
+        id: int
+        user: User
+        timeCreated: datetime.datetime
+        activeUntil: datetime.datetime
+        maxUseCount: int
+        curUseCount: int
+        reward: int
+        status: int = 0
+        
     
 

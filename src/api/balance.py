@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, APIRouter
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Union
 import datetime
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
 import numpy as np
@@ -87,3 +87,84 @@ def drop_money(steam_id: str, db: Session = Depends(get_db)):
     db.add(transaction)
     db.commit()
     return {'nextDrop':time + DROP_COOLDOWN, 'value':value, 'user':{'steamId': user.steamId, 'id':user.id}}
+
+
+@balance_api.post('/giveaway', response_model=Union[Schemas.Giveaway.Output, Schemas.StatusCode])
+def create_giveaway(steam_id: str, info: Schemas.Giveaway.Input, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    """
+    Создает раздачу токенов ценой баланса раздавающего.\n
+    status:
+     - 0: Раздача создана
+     - 1: Неправильная награда (неверный формат числа)
+     - 2: Недостаточно средств
+     - 3: Неверная дата окочания
+     - 4: Неверное количество использований (неверный формат числа)
+    """
+    checkToken(db, token)
+    user = getOrCreateUser(db, steam_id)
+    balance = getOrCreateBalance(db, user)
+    if info.reward <= 0: raise HTTPException(400, {'status':1})
+    if balance.value < info.reward * info.useCount: raise HTTPException(400, {'status':2})
+    if info.activeUntil <= datetime.datetime.now(): raise HTTPException(400, {'status':3}) 
+    if info.useCount < 1: raise HTTPException(400, {'status':4})
+    balance.value -= info.reward * info.useCount
+    obj = Models.Giveaway(user=user, activeUntil=info.activeUntil, maxUseCount=info.useCount, reward=info.reward)
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+@balance_api.get('/giveaway/checkout', response_model=Union[Schemas.Giveaway.Output, Schemas.StatusCode])
+def checkout_giveaway(giveaway_id: int, steam_id: str, db: Session = Depends(get_db)):
+    """
+    Учавствует в раздаче `giveaway_id` от имени игрока `steam_id`.\n
+    status:
+     - 0: Награда получена
+     - 1: Раздача не найдена
+     - 2: Раздача закончена (по времени)
+     - 3: Награды кончились (окончена по количеству использований)
+     - 4: Игрок уже участвовал в раздаче
+     - 5: Создатель раздачи не может в ней участвовать
+    """
+    user = getOrCreateUser(db, steam_id)
+    balance = getOrCreateBalance(db, user)
+    giveaway = db.query(Models.Giveaway).filter(Models.Giveaway.id == giveaway_id).first()
+    if giveaway is None: raise HTTPException(400, {'status':1})
+    if giveaway.userId == user.id: raise HTTPException(400, {'status':5})
+    if datetime.datetime.now() > giveaway.activeUntil: raise HTTPException(400, {'status':2})
+    if giveaway.curUseCount >= giveaway.maxUseCount: raise HTTPException(400, {'status':3})
+    if db.query(Models.GiveawayUse)\
+        .filter((Models.GiveawayUse.userId == user.id) & (Models.GiveawayUse.giveawayId == giveaway.id))\
+            .first() is not None: raise HTTPException(400, {'status':4})
+    gu = Models.GiveawayUse(user=user, giveaway=giveaway)
+    giveaway.curUseCount += 1
+    balance.value += giveaway.reward
+    db.add(gu)
+    db.commit()
+    db.refresh(giveaway)
+    return giveaway
+
+@balance_api.delete('/giveaway')
+def delete_giveaway(giveaway_id: int, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    """
+    Удаляет раздачу и возвращает коины владельцу.
+    """
+    checkToken(db, token)
+    if (giveaway:=db.query(Models.Giveaway).filter(Models.Giveaway.id == giveaway_id).first()) is None:
+        raise HTTPException(404, 'Giveaway not found')
+    balance = getOrCreateBalance(db, giveaway.user)
+    balance.value += giveaway.reward * (giveaway.maxUseCount - giveaway.curUseCount)
+    db.delete(giveaway)
+    db.commit()
+    return 'Deleted'
+
+@balance_api.get('/giveaway/all', response_model=list[Schemas.Giveaway.Output])
+def get_giveaways_by_steam(steam_id: str, db: Session = Depends(get_db)):
+    """
+    Получает все раздачи пользователя.
+    """
+    user = getUser(db, steam_id)
+    giveaways = db.query(Models.Giveaway).filter(Models.Giveaway.userId == user.id).all()
+    return giveaways
+
+
