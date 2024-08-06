@@ -1,1 +1,1 @@
-alembic revision --autogenerate
+docker compose exec l4d2vortexapi alembic revision --autogenerate

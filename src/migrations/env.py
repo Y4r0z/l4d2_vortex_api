@@ -10,7 +10,7 @@ from src.database.models import Base
 # access to the values within the .ini file in use.
 config = context.config
 
-config.set_main_option("sqlalchemy.url", os.environ.get('SQL_CONNECT_STRING').replace('vortex_l4d2_db', 'localhost'))
+config.set_main_option("sqlalchemy.url", os.environ.get('SQL_CONNECT_STRING'))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
