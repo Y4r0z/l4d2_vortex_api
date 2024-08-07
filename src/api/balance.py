@@ -106,7 +106,7 @@ def create_giveaway(steam_id: str, info: Schemas.Giveaway.Input, db: Session = D
     balance = getOrCreateBalance(db, user)
     if info.reward <= 0: return JSONResponse({'status': 1}, status_code=400)
     if balance.value < info.reward * info.useCount: return JSONResponse({'status': 2}, status_code=400)
-    if info.activeUntil <= datetime.datetime.now(): return JSONResponse({'status': 3}, status_code=400)
+    if info.activeUntil <= datetime.datetime.now().replace(tzinfo=datetime.timezone.utc): return JSONResponse({'status': 3}, status_code=400)
     if info.useCount < 1: return JSONResponse({'status': 4}, status_code=400)
     balance.value -= info.reward * info.useCount
     obj = Models.Giveaway(user=user, activeUntil=info.activeUntil, maxUseCount=info.useCount, reward=info.reward)
@@ -162,10 +162,11 @@ def delete_giveaway(giveaway_id: int, db: Session = Depends(get_db), token: str 
 @balance_api.get('/giveaway/all', response_model=list[Schemas.Giveaway.Output])
 def get_giveaways_by_steam(steam_id: str, db: Session = Depends(get_db)):
     """
-    Получает все раздачи пользователя.
+    Получает все активные раздачи пользователя.
     """
     user = getUser(db, steam_id)
-    giveaways = db.query(Models.Giveaway).filter(Models.Giveaway.userId == user.id).all()
+    now = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
+    giveaways = db.query(Models.Giveaway).filter(Models.Giveaway.userId == user.id).filter(now < Models.Giveaway.activeUntil).all()
     return giveaways
 
 
