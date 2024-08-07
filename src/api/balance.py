@@ -1,4 +1,5 @@
 from fastapi import Depends, HTTPException, APIRouter
+from fastapi.responses import JSONResponse
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
@@ -103,10 +104,10 @@ def create_giveaway(steam_id: str, info: Schemas.Giveaway.Input, db: Session = D
     checkToken(db, token)
     user = getOrCreateUser(db, steam_id)
     balance = getOrCreateBalance(db, user)
-    if info.reward <= 0: raise HTTPException(400, {'status':1})
-    if balance.value < info.reward * info.useCount: raise HTTPException(400, {'status':2})
-    if info.activeUntil <= datetime.datetime.now(): raise HTTPException(400, {'status':3}) 
-    if info.useCount < 1: raise HTTPException(400, {'status':4})
+    if info.reward <= 0: return JSONResponse({'status': 1}, status_code=400)
+    if balance.value < info.reward * info.useCount: return JSONResponse({'status': 2}, status_code=400)
+    if info.activeUntil <= datetime.datetime.now(): return JSONResponse({'status': 3}, status_code=400)
+    if info.useCount < 1: return JSONResponse({'status': 4}, status_code=400)
     balance.value -= info.reward * info.useCount
     obj = Models.Giveaway(user=user, activeUntil=info.activeUntil, maxUseCount=info.useCount, reward=info.reward)
     db.add(obj)
@@ -129,13 +130,13 @@ def checkout_giveaway(giveaway_id: int, steam_id: str, db: Session = Depends(get
     user = getOrCreateUser(db, steam_id)
     balance = getOrCreateBalance(db, user)
     giveaway = db.query(Models.Giveaway).filter(Models.Giveaway.id == giveaway_id).first()
-    if giveaway is None: raise HTTPException(400, {'status':1})
-    if giveaway.userId == user.id: raise HTTPException(400, {'status':5})
-    if datetime.datetime.now() > giveaway.activeUntil: raise HTTPException(400, {'status':2})
-    if giveaway.curUseCount >= giveaway.maxUseCount: raise HTTPException(400, {'status':3})
+    if giveaway is None: return JSONResponse({'status': 1}, status_code=400)
+    if giveaway.userId == user.id: return JSONResponse({'status': 5}, status_code=400)
+    if datetime.datetime.now() > giveaway.activeUntil: return JSONResponse({'status': 2}, status_code=400)
+    if giveaway.curUseCount >= giveaway.maxUseCount: return JSONResponse({'status': 3}, status_code=400)
     if db.query(Models.GiveawayUse)\
         .filter((Models.GiveawayUse.userId == user.id) & (Models.GiveawayUse.giveawayId == giveaway.id))\
-            .first() is not None: raise HTTPException(400, {'status':4})
+            .first() is not None: return JSONResponse({'status': 4}, status_code=400)
     gu = Models.GiveawayUse(user=user, giveaway=giveaway)
     giveaway.curUseCount += 1
     balance.value += giveaway.reward

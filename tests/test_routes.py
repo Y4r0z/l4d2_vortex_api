@@ -199,7 +199,7 @@ def test_giveaway():
     r4 = client.get(f'/balance/giveaway/checkout?steam_id=test_client2&giveaway_id={r2j["id"]}')
     assert r4.status_code == 400
     r4j = r4.json()
-    assert r4j['detail']['status'] == 3
+    assert r4j['status'] == 3
     r5 = client.delete(f'/balance/giveaway?giveaway_id={r2j["id"]}')
     assert r5.status_code == 200
     r6 = client.get(f'/balance?steam_id=test_client2')
