@@ -14,8 +14,11 @@ def find_discord(query : str, db: Session = Depends(get_db)):
 
 @discord_api.post('', response_model=Schemas.SteamDiscordLink)
 def create_link(discord_id: str, steam_id: str, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    """
+    Привязывает Discord к Steam, создает нового юзера если не найден
+    """
     checkToken(db, token)
-    user = getUser(db, steam_id)
+    user = getOrCreateUser(db, steam_id)
     Crud.delete_discord(db, discord_id)
     return Crud.create_discord(db, user, discord_id)
 

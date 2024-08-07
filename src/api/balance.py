@@ -166,7 +166,9 @@ def get_giveaways_by_steam(steam_id: str, db: Session = Depends(get_db)):
     """
     user = getUser(db, steam_id)
     now = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)
-    giveaways = db.query(Models.Giveaway).filter(Models.Giveaway.userId == user.id).filter(now < Models.Giveaway.activeUntil).all()
+    giveaways = db.query(Models.Giveaway) \
+        .filter(Models.Giveaway.userId == user.id) \
+        .filter((now < Models.Giveaway.activeUntil) & (Models.Giveaway.curUseCount < Models.Giveaway.maxUseCount)).all()
     return giveaways
 
 
