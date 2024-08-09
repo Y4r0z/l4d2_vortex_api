@@ -41,6 +41,7 @@ class PrivilegesList(BaseModel):
     legend: bool = False
     customPrefix:str = ""
     welcomePhrase: str = ""
+    discord: bool = False
 
 class User(BaseModel):
     id : int
