@@ -54,9 +54,21 @@ class RoundScoreFilter(Filter):
         
 
 class L4D2ItemFilter(Filter):
-    order_by: list[str] = ['name', 'id']
+    order_by: list[str] = ['name', 'command', 'id']
     search: Optional[str] = None
     
     class Constants(Filter.Constants):
         model = Models.L4D2Item
-        search_model_fields = ["name"]
+        search_model_fields = ["name", 'command', 'id']
+
+
+class UserInventoryFilter(Filter):
+    order_by: list[str] = ['activeUntil', 'itemId', 'id', 'userId']
+    search: Optional[str] = None
+    user: Optional[UserFilter] = FilterDepends(UserFilter)
+    item: Optional[L4D2ItemFilter] = FilterDepends(L4D2ItemFilter)
+    
+    class Constants(Filter.Constants):
+        model = Models.UserInventory
+        search_model_fields = ["activeUntil", "id"]
+    

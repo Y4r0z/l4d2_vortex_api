@@ -285,3 +285,42 @@ def test_privilege_item():
     response = client.delete(f'items/privilege_item?item_id={item_id}')
     assert response.status_code == 200
     
+
+
+
+def test_inventory():
+    # Test adding items to the inventory
+    itemResponse = client.post('items/l4d2_item', json=l4d2_item)
+    item = itemResponse.json()
+    invItem = {'itemId': item['id'], 'activeUntil':'2030-01-01T00:00:00'}
+    response = client.post('inventory/add?steam_id=test_client', json=invItem)
+    inventoryItem = response.json()
+    assert response.status_code == 200
+    assert response.json()['item']['id'] == item['id']
+    
+    # Test getting inventory items by steam_id
+    response = client.get(f'inventory/items?steam_id=test_client')
+    assert response.status_code == 200
+    assert len(response.json()) > 0
+    
+    # Test getting inventory items by item_id
+    response = client.get(f'inventory?inventory_item_id={inventoryItem["id"]}')
+    assert response.status_code == 200
+    assert response.json()['item']['id'] == invItem['itemId']
+    
+    # Test inventory item checkout
+    response = client.post(f'inventory/checkout?inventory_item_id={inventoryItem["id"]}')
+    assert response.status_code == 200
+    assert response.json()['id'] == invItem['itemId']
+    
+    # Test inventory item checkout second time
+    response = client.post(f'inventory/checkout?inventory_item_id={inventoryItem["id"]}')
+    assert response.status_code == 400
+    
+    # Test inventory item deletion
+    response = client.delete(f'inventory?inventory_item_id={inventoryItem["id"]}')
+    assert response.status_code == 200
+    
+    
+
+    

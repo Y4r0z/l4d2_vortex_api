@@ -108,6 +108,7 @@ def create_privilege_item(item: Schemas.PrivilegeItem.Input, db: Session = Depen
     Создает привелеиию, как предмет, который может быть выдан пользователю.
     """
     checkToken(db, token)
+    findByIDOrAbort(db, Models.PrivilegeType, item.privilegeTypeId)
     db.add(obj:=Models.PrivilegeItem(name=item.name, duration=item.duration, privilegeTypeId=item.privilegeTypeId))
     db.commit()
     db.refresh(obj)

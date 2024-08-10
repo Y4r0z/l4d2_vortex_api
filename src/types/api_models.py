@@ -201,10 +201,15 @@ class DailyQuest:
         rewards: list[Reward.Output]
         
 
-class Inventory:
+class InventoryItem:
+    class Input(BaseModel):
+        itemId: int
+        activeUntil: datetime.datetime
     class Output(BaseModel):
+        id: int
         user: User
-        item: list[L4D2Item.Output]
+        item: L4D2Item.Output
+        activeUntil: datetime.datetime
         
 
 class EmptyDrop:
