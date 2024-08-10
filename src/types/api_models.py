@@ -143,3 +143,74 @@ class Giveaway:
         
     
 
+class L4D2Item:
+    class Input(BaseModel):
+        name: str
+        command: str
+    class Output(BaseModel):
+        id: int
+        name: str
+        command: str
+
+class PrivilegeItem:
+    class Input(BaseModel):
+        name: str
+        privilegeTypeId: int
+        duration: int #unix timestamp
+    class Output(BaseModel):
+        id: int
+        name: str
+        duration: int
+        privilegeType: PrivilegeType
+
+class Reward:
+    class Input(BaseModel):
+        name: str
+        itemId: int | None
+        privilegeItemId: int | None
+    class Output(BaseModel):
+        id: int
+        name: str
+        item: L4D2Item.Output | None
+        privilegeItem: PrivilegeItem.Output | None
+
+class SimpleQuest:
+    class Input(BaseModel):
+        name: str
+        description: str
+        rewardId: int
+    class Output(BaseModel):
+        id: int
+        name: str
+        description: str
+        reward: Reward.Output
+
+class DailyQuest:
+    class Input(BaseModel):
+        activeUntil: datetime.datetime
+        curProgress: int = 0
+        maxProgress: int = 1
+        questId: int
+    class Output(BaseModel):
+        id: int
+        user: User
+        activeUntil: datetime.datetime
+        curProgress: int
+        maxProgress: int
+        quest: SimpleQuest.Output
+        rewards: list[Reward.Output]
+        
+
+class Inventory:
+    class Output(BaseModel):
+        user: User
+        item: list[L4D2Item.Output]
+        
+
+class EmptyDrop:
+    class Output(BaseModel):
+        user: User
+        value: int
+        nextDrop: datetime.datetime
+
+    

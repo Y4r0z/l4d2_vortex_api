@@ -106,7 +106,7 @@ def create_giveaway(steam_id: str, info: Schemas.Giveaway.Input, db: Session = D
     balance = getOrCreateBalance(db, user)
     if info.reward <= 0: return JSONResponse({'status': 1}, status_code=400)
     if balance.value < info.reward * info.useCount: return JSONResponse({'status': 2}, status_code=400)
-    if info.activeUntil <= datetime.datetime.now().replace(tzinfo=datetime.timezone.utc): return JSONResponse({'status': 3}, status_code=400)
+    if info.activeUntil.replace(tzinfo=datetime.timezone.utc) <= datetime.datetime.now(tz=datetime.timezone.utc): return JSONResponse({'status': 3}, status_code=400)
     if info.useCount < 1: return JSONResponse({'status': 4}, status_code=400)
     balance.value -= info.reward * info.useCount
     obj = Models.Giveaway(user=user, activeUntil=info.activeUntil, maxUseCount=info.useCount, reward=info.reward)

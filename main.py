@@ -8,6 +8,7 @@ from src.api.balance import balance_api
 from src.api.discord import discord_api
 from src.api.chat_logs import logs_api
 from src.api.score import score_api
+from src.api.items import items_api
 
 
 def createData():
@@ -35,4 +36,5 @@ app.include_router(balance_api, prefix='/balance')
 app.include_router(discord_api, prefix='/discord')
 app.include_router(logs_api, prefix='/logs')
 app.include_router(score_api, prefix='/score')
+app.include_router(items_api, prefix='/items')
 

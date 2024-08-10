@@ -3,13 +3,16 @@ from fastapi_filter import FilterDepends
 from src.database import models as Models
 from typing import Optional
 from pydantic import Field
-from fastapi import Query
+from sqlalchemy.orm import Query
 
 
 class Pagination:
     def __init__(self, offset: int = 0, limit:int = 25):
         self.offset = offset
         self.limit = limit
+    
+    def paginate(self, query: Query):
+        return query.offset(self.offset).limit(self.limit)
 
 
 class LogsFilter(Filter):
@@ -49,3 +52,11 @@ class RoundScoreFilter(Filter):
         model = Models.RoundScore
         search_model_fields = ["time"]
         
+
+class L4D2ItemFilter(Filter):
+    order_by: list[str] = ['name', 'id']
+    search: Optional[str] = None
+    
+    class Constants(Filter.Constants):
+        model = Models.L4D2Item
+        search_model_fields = ["name"]

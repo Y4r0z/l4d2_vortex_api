@@ -206,4 +206,82 @@ def test_giveaway():
     assert r6.json()['value'] == 20
 
 
+
+
+l4d2_item = {
+    'name': 'Test Item',
+    'command': 'give weapon_knife'
+}
+privilege_item = {
+    'name': 'Test Privilege',
+    'duration': 3600,
+    'privilegeTypeId': 1
+}
+
+def test_l4d2_item():
+    # Test creating a new L4D2 item
+    response = client.post('items/l4d2_item', json=l4d2_item)
+    assert response.status_code == 200
+    item = response.json()
+    assert item['name'] == l4d2_item['name']
+    assert item['command'] == l4d2_item['command']
+
+    # Test getting an L4D2 item by id
+    item_id = item['id']
+    response = client.get(f'items/l4d2_item?item_id={item_id}')
+    assert response.status_code == 200
+    assert response.json()['id'] == item_id
+
+    # Test getting an L4D2 item by name
+    item_name = item['name']
+    response = client.get(f'items/l4d2_item/by_name?item_name={item_name}')
+    assert response.status_code == 200
+    assert response.json()['name'] == item_name
+
+    # Test updating an L4D2 item
+    new_item = {'name': 'Updated Test Item', 'command': 'give weapon_deagle'}
+    response = client.put(f'items/l4d2_item?item_id={item_id}', json=new_item)
+    assert response.status_code == 200
+    updated_item = response.json()
+    assert updated_item['name'] == new_item['name']
+    assert updated_item['command'] == new_item['command']
+    
+    # Test deleting an L4D2 item
+    response = client.delete(f'items/l4d2_item?item_id={item_id}')
+    assert response.status_code == 200
+
+# Test the /privilege_item endpoint
+def test_privilege_item():
+    # Test creating a new privilege item
+    response = client.post('items/privilege_item', json=privilege_item)
+    assert response.status_code == 200
+    item = response.json()
+    assert item['name'] == privilege_item['name']
+    assert item['duration'] == privilege_item['duration']
+    assert item['privilegeType']['id'] == privilege_item['privilegeTypeId']
+
+    # Test getting a privilege item by id
+    item_id = item['id']
+    response = client.get(f'items/privilege_item?item_id={item_id}')
+    assert response.status_code == 200
+    assert response.json()['id'] == item_id
+
+    # Test getting a privilege item by name
+    item_name = item['name']
+    response = client.get(f'items/privilege_item/by_name?item_name={item_name}')
+    assert response.status_code == 200
+    assert response.json()['name'] == item_name
+
+    # Test updating a privilege item
+    new_item = {'name': 'Updated Test Privilege', 'duration': 7200, 'privilegeTypeId': 2}
+    response = client.put(f'items/privilege_item?item_id={item_id}', json=new_item)
+    assert response.status_code == 200
+    updated_item = response.json()
+    assert updated_item['name'] == new_item['name']
+    assert updated_item['duration'] == new_item['duration']
+    assert updated_item['privilegeType']['id'] == new_item['privilegeTypeId']
+    
+    # Test deleting a privilege item
+    response = client.delete(f'items/privilege_item?item_id={item_id}')
+    assert response.status_code == 200
     

@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date
+from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date, Table, Column
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column as column, relationship, sessionmaker
 from sqlalchemy.sql import func as sqlFunc
 from typing import List, Optional
@@ -6,8 +6,10 @@ import datetime
 import os
 from sqlalchemy import create_engine
 
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
-engine = create_engine(os.environ.get("SQL_CONNECT_STRING") or "")
+engine = create_engine(os.environ.get("SQL_CONNECT_STRING") or '')
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
@@ -202,3 +204,66 @@ class GiveawayUse(IDModel):
     time: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
 
 
+
+class L4D2Item(IDModel):
+    __tablename__ = 'l4d2Item'
+    name: Mapped[str] = column(String(64), default='L4D2 Item')
+    command: Mapped[str] = column(String(128))
+
+class PrivilegeItem(IDModel):
+    __tablename__ = 'privilegeItem'
+    name: Mapped[str] = column(String(64), default='Privilege Item')
+    privilegeTypeId: Mapped[int] = column(ForeignKey('privilegeType.id', ondelete='cascade'))
+    privilegeType: Mapped["PrivilegeType"] = relationship('PrivilegeType', foreign_keys='PrivilegeItem.privilegeTypeId')
+    duration: Mapped[int] = column(Integer)
+
+class Reward(IDModel):
+    __tablename__ = 'reward'
+    name: Mapped[str] = column(String(64), default='Reward')
+    itemId: Mapped[int] = column(ForeignKey('l4d2Item.id', ondelete='cascade'), nullable=True, default=None)
+    item: Mapped["L4D2Item"] = relationship('L4D2Item', foreign_keys='Reward.itemId')
+    privilegeItemId: Mapped[int] = column(ForeignKey('privilegeItem.id', ondelete='cascade'), nullable=True, default=None)
+    privilegeItem: Mapped["PrivilegeItem"] = relationship('PrivilegeItem', foreign_keys='Reward.privilegeItemId')
+    dailyQuests: Mapped[List["DailyQuest"]] = relationship('DailyQuest', secondary='dailyQuests_Rewards', back_populates='rewards')
+
+class SimpleQuest(IDModel):
+    __tablename__ = 'simpleQuest'
+    name: Mapped[str] = column(String(64), default='Simple Quest')
+    description: Mapped[str] = column(String(128), default='This is a simple quest')
+    rewardId: Mapped[int] = column(ForeignKey('reward.id', ondelete='cascade'))
+    reward: Mapped["Reward"] = relationship('Reward', foreign_keys='SimpleQuest.rewardId')
+    
+class DailyQuest(IDModel):
+    __tablename__ = 'dailyQuest'
+    activeUntil: Mapped[datetime.datetime] = column(DateTime(timezone=True))
+    curProgress: Mapped[int] = column(Integer, default=0)
+    maxProgress: Mapped[int] = column(Integer, default=1)
+    questId: Mapped[int] = column(ForeignKey('simpleQuest.id', ondelete='cascade'))
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='DailyQuest.userId')
+    rewards: Mapped[List["Reward"]] = relationship('Reward', secondary='dailyQuests_Rewards', back_populates='dailyQuests')
+
+class DailyQuests_Rewards(IDModel):
+    __tablename__ = 'dailyQuests_Rewards'
+    dailyQuestId: Mapped[int] = column(ForeignKey('dailyQuest.id', ondelete='cascade'))
+    rewardId: Mapped[int] = column(ForeignKey('reward.id', ondelete='cascade'))
+
+class EmptyDrop(IDModel):
+    __tablename__ = 'emptyDrop'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='EmptyDrop.userId')
+    time: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+
+
+
+class UserInventory(IDModel):
+    __tablename__ = 'userInventory'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='UserInventory.userId')
+    itemId: Mapped[int] = column(ForeignKey('l4d2Item.id', ondelete='cascade'))
+    item: Mapped["L4D2Item"] = relationship('L4D2Item', foreign_keys='UserInventory.itemId')
+    activeUntil: Mapped[datetime.datetime] = column(DateTime(timezone=True))
+    
+    
+    
+    
