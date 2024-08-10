@@ -62,11 +62,19 @@ class L4D2ItemFilter(Filter):
         search_model_fields = ["name", 'command', 'id']
 
 
+class AdditionalItemFilter(Filter):
+    item: Optional[str] = None
+    class Constants(Filter.Constants):
+        model = Models.L4D2Item
+        search_field_name = 'item'
+        search_model_fields = ['name', 'command', 'id']
+
+
 class UserInventoryFilter(Filter):
     order_by: list[str] = ['activeUntil', 'itemId', 'id', 'userId']
     search: Optional[str] = None
     user: Optional[UserFilter] = FilterDepends(UserFilter)
-    item: Optional[L4D2ItemFilter] = FilterDepends(L4D2ItemFilter)
+    item: Optional[AdditionalItemFilter] = FilterDepends(AdditionalItemFilter)
     
     class Constants(Filter.Constants):
         model = Models.UserInventory

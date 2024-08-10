@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session, Query
 from typing import Optional, List
 import datetime
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
-from src.api.filter import LogsFilter, FilterDepends, Pagination
 
 
 logs_api = APIRouter()
