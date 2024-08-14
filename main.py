@@ -10,6 +10,7 @@ from src.api.chat_logs import logs_api
 from src.api.score import score_api
 from src.api.items import items_api
 from src.api.inventory import inventory_api
+from src.api.tools import app_lifespan
 
 
 def createData():
@@ -31,7 +32,11 @@ try:
     createData()
 except:
     print('Can not create initial data in database')
-app = FastAPI()
+    
+
+
+
+app = FastAPI(lifespan=app_lifespan)
 app.include_router(api)
 app.include_router(balance_api, prefix='/balance')
 app.include_router(discord_api, prefix='/discord')
@@ -39,4 +44,6 @@ app.include_router(logs_api, prefix='/logs')
 app.include_router(score_api, prefix='/score')
 app.include_router(items_api, prefix='/items')
 app.include_router(inventory_api, prefix='/inventory')
+
+
 

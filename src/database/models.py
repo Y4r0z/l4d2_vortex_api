@@ -5,12 +5,14 @@ from typing import List, Optional
 import datetime
 import os
 from sqlalchemy import create_engine
+from src.settings import SQL_CONNECT_STRING
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
-from dotenv import load_dotenv
-load_dotenv(override=True)
 
-engine = create_engine(os.environ.get("SQL_CONNECT_STRING") or '')
+engine = create_engine(SQL_CONNECT_STRING)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# asyncEngine = create_async_engine(SQL_CONNECT_STRING)
+# AsyncSessionLocal = sessionmaker(asyncEngine, _class=AsyncSession, autoflush=False, autocommit=False) #type: ignore
 
 class Base(DeclarativeBase):
     pass

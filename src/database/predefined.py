@@ -1,6 +1,7 @@
 from src.database.models import User, PrivilegeStatus, PrivilegeType, AuthToken
 import datetime
 import os
+from src.settings import SERVER_TOKEN
 
 FarTime = datetime.datetime(2100, 1, 1, 1, 1, 1)
 
@@ -29,5 +30,5 @@ Privileges = {
 }
 
 AuthTokens = {
-    'server': AuthToken(id=1,userId=Users['server'].id,token=os.environ.get('SERVER_TOKEN'))
+    'server': AuthToken(id=1,userId=Users['server'].id,token=SERVER_TOKEN)
 }

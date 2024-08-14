@@ -1,20 +1,29 @@
 from fastapi import Depends, HTTPException, APIRouter
-from src.database import crud as Crud, models as Models
+from src.database import models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
-from typing import Optional, List
-import datetime
-from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
-from src.api.filter import SeasonFilter, RoundScoreFilter
-from typing import TypeVar
 from sqlalchemy import func
+from typing import List
+import datetime
+from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getRedis
+from src.api.filter import SeasonFilter, RoundScoreFilter, Pagination
+from typing import TypeVar
+from sqlalchemy import func, select
 from fastapi_filter import FilterDepends
+from redis.asyncio import Redis # type: ignore
+import src.lib.steam_api as SteamAPI
+from sqlalchemy.sql.expression import cast
+from sqlalchemy import Integer
+import json
+import asyncio
+
+
+
+PROFILE_CACHE_TIME = 86400
+TOP_CACHE_TIME = 3600
 
 score_api = APIRouter()
 
-"""
-TODO: search
-"""
 
 T = TypeVar('T', bound=Models.IDModel)
 def createObj(steam_id: str, schemaObj: Schemas.BaseModel, db: Session, token: str, model: type[T]) -> T:
@@ -80,3 +89,69 @@ def search_seasons(season_filter: SeasonFilter = FilterDepends(SeasonFilter), db
     query = season_filter.filter(query)
     query = season_filter.sort(query)
     return query.all()
+
+
+
+# @score_api.get('/test', response_model=None)
+# async def test_redis(field: str, redis: Redis = Depends(getRedis)):
+#     steamid = await SteamAPI.ResolveVanityURL(field)
+#     return await SteamAPI.GetPlayerSummaries(steamid)
+    
+# @score_api.get('/top')
+# def get_top_scores(pagination: Pagination = Depends(Pagination), db: Session = Depends(get_db)):
+#     query = db.query(Models.ScoreSeason).order_by(Models.ScoreSeason.agression + Models.ScoreSeason.support + Models.ScoreSeason.perks).limit(limit)
+#     return query.all()
+
+# select dense_rank() over (order by sum(agression + support + perks) desc) as 'rank', 
+# user.steamId, sum(agression + support + perks) as score 
+# from roundScore 
+# left join user on user.id = roundScore.userId 
+# group by steamId 
+# order by score desc;
+
+
+async def createTopList(item: tuple[int, str, int], result: list, redis: Redis):
+    steamId = item[1]
+    rkey = f'steam:{steamId}'
+    if (steamInfo:=(await redis.get(rkey))) is None:      
+        steamInfo = await SteamAPI.GetPlayerSummaries(steamId)
+        await redis.set(rkey, json.dumps(steamInfo), ex=PROFILE_CACHE_TIME)
+    else:
+        steamInfo = json.loads(steamInfo)
+    result.append(
+        {
+        'rank':     item[0],
+        'steamId':  steamId,
+        'score':    item[2],
+        'steamInfo': steamInfo
+        }
+    )
+
+"""
+TODO: Steam API per player, cache redis per player (ex: 3days)
+"""
+@score_api.get('/top', response_model=None)
+async def get_top_scores(
+    pagination: Pagination = Depends(Pagination), 
+    db: Session = Depends(get_db), 
+    redis: Redis = Depends(getRedis)
+):
+    if pagination.limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be less than or equal to 100.")
+    rkey = f'top:{pagination.limit}:{pagination.offset}'
+    if (data:=(await redis.get(rkey))) is not None:
+        return json.loads(data)
+    top = select(
+        func.dense_rank().over(order_by=func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()),
+        Models.User.steamId,
+        cast(func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks), Integer)
+    ).join(Models.User, Models.User.id == Models.RoundScore.userId) \
+    .group_by(Models.User.steamId) \
+    .order_by(func.sum(Models.RoundScore.agression + Models.RoundScore.support +Models.RoundScore.perks).desc())
+    query = pagination.paginate(top)
+    queryResult = db.execute(query)
+    result : list[dict] = []
+    tasks = [createTopList(i, result, redis) for i in queryResult]
+    await asyncio.gather(*tasks)
+    await redis.set(rkey, json.dumps(result), ex=TOP_CACHE_TIME)
+    return result

@@ -4,14 +4,18 @@ from src.database import models as Models
 from typing import Optional
 from pydantic import Field
 from sqlalchemy.orm import Query
+from sqlalchemy import Select
 
 
 class Pagination:
     def __init__(self, offset: int = 0, limit:int = 25):
+        """
+        @param limit: max - 250, default - 25
+        """
         self.offset = offset
-        self.limit = limit
+        self.limit = min(limit, 250)
     
-    def paginate(self, query: Query):
+    def paginate(self, query: Query | Select):
         return query.offset(self.offset).limit(self.limit)
 
 
@@ -60,6 +64,15 @@ class L4D2ItemFilter(Filter):
     class Constants(Filter.Constants):
         model = Models.L4D2Item
         search_model_fields = ["name", 'command', 'id']
+        
+
+class PrivilegeItemFilter(Filter):
+    order_by: list[str] = ['name', 'privilegeTypeId', 'id']
+    search: Optional[str] = None
+    
+    class Constants(Filter.Constants):
+        model = Models.PrivilegeItem
+        search_model_fields = ["name", 'privilegeTypeId', 'id']
 
 
 class AdditionalItemFilter(Filter):

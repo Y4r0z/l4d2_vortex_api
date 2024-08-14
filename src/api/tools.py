@@ -1,11 +1,13 @@
-from fastapi import Depends, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import InstrumentedAttribute
 from src.database.models import SessionLocal
 from src.database import crud as Crud, models as Models
 from sqlalchemy.orm import Session, Query
 from typing import Optional, TypeVar, Any
-
+import redis.asyncio as aioredis # type: ignore
+from src.settings import REDIS_CONNECT_STRING, REDIS_DATABASE
+from contextlib import asynccontextmanager
 
 security = HTTPBearer()
 
@@ -50,3 +52,22 @@ def findByField(db:Session, model: type[T2], field: InstrumentedAttribute, value
 def findByFieldOrAbort(db: Session, model: type[T2], field: InstrumentedAttribute, value: Any) -> T2:
     if (obj:=findByField(db, model, field, value)) is None: raise HTTPException(404, f'Object of type <{model.__tablename__}> with {field.key}={value} not found')
     return obj
+
+
+
+def createRedisPool():
+    return aioredis.ConnectionPool.from_url(REDIS_CONNECT_STRING, encoding='utf-8', decode_responses=True, db=REDIS_DATABASE)
+redis_pool = createRedisPool()
+def getRedis():
+    return aioredis.Redis(connection_pool=redis_pool)
+
+
+@asynccontextmanager
+async def app_lifespan(app: FastAPI):
+    ...
+    yield
+    await getRedis().bgsave()
+    
+# async def getAsyncDB():
+#     async with Models.AsyncSessionLocal() as session:
+#         yield session

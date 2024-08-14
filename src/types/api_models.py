@@ -218,4 +218,13 @@ class EmptyDrop:
         value: int
         nextDrop: datetime.datetime
 
+
+
+
+class TopOutput(BaseModel):
+    steamId: str
+    agression: int
+    support: int
+    perks: int
+    total: int
     

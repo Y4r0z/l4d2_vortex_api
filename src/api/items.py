@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 import datetime
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken, findByID, findByIDOrAbort, findByField, findByFieldOrAbort
-from src.api.filter import L4D2ItemFilter, Pagination
+from src.api.filter import L4D2ItemFilter, Pagination, PrivilegeItemFilter
 from fastapi_filter import FilterDepends
 
 
@@ -140,7 +140,7 @@ def get_privilege_item_byname(item_name: str, db: Session = Depends(get_db)):
     return findByFieldOrAbort(db, Models.PrivilegeItem, Models.PrivilegeItem.name, item_name)
 
 @items_api.get('/privilege_item/search', response_model=List[Schemas.PrivilegeItem.Output])
-def search_privilege_items(db: Session = Depends(get_db), items_filter: L4D2ItemFilter = FilterDepends(L4D2ItemFilter), pagination: Pagination = Depends(Pagination)):
+def search_privilege_items(db: Session = Depends(get_db), items_filter: PrivilegeItemFilter = FilterDepends(PrivilegeItemFilter), pagination: Pagination = Depends(Pagination)):
     query = db.query(Models.PrivilegeItem)
     query = items_filter.filter(query)
     query = items_filter.sort(query)
