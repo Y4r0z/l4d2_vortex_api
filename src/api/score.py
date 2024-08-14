@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 import datetime
-from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getRedis
+from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getRedis, getUser
 from src.api.filter import SeasonFilter, RoundScoreFilter, Pagination
 from typing import TypeVar
 from sqlalchemy import func, select
@@ -92,23 +92,12 @@ def search_seasons(season_filter: SeasonFilter = FilterDepends(SeasonFilter), db
 
 
 
-# @score_api.get('/test', response_model=None)
-# async def test_redis(field: str, redis: Redis = Depends(getRedis)):
-#     steamid = await SteamAPI.ResolveVanityURL(field)
-#     return await SteamAPI.GetPlayerSummaries(steamid)
-    
-# @score_api.get('/top')
-# def get_top_scores(pagination: Pagination = Depends(Pagination), db: Session = Depends(get_db)):
-#     query = db.query(Models.ScoreSeason).order_by(Models.ScoreSeason.agression + Models.ScoreSeason.support + Models.ScoreSeason.perks).limit(limit)
-#     return query.all()
-
 # select dense_rank() over (order by sum(agression + support + perks) desc) as 'rank', 
 # user.steamId, sum(agression + support + perks) as score 
 # from roundScore 
 # left join user on user.id = roundScore.userId 
 # group by steamId 
 # order by score desc;
-
 
 async def createTopList(item: tuple[int, str, int], result: list, redis: Redis):
     steamId = item[1]
@@ -155,3 +144,25 @@ async def get_top_scores(
     await asyncio.gather(*tasks)
     await redis.set(rkey, json.dumps(result), ex=TOP_CACHE_TIME)
     return result
+
+
+
+"""
+select * from
+(select userId, dense_rank() over (order by sum(agression + support + perks) desc) as 'rank' from roundScore group by userId) tbl
+where userId = USER_ID;
+"""
+@score_api.get('/top/rank', response_model=int)
+def get_player_top_rank(steam_id: str, db: Session = Depends(get_db)):
+    user = getUser(db, steam_id)
+    subquery = select(
+        Models.RoundScore.userId, 
+        func.dense_rank().over(order_by=func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()).label('rank')
+    ).group_by(Models.RoundScore.userId).alias('tbl')
+    query = select(subquery.c.rank).where(subquery.c.userId == user.id)
+    result = db.execute(query).first()
+    if result is None: raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
+    return result[0]
+        
+        
+    
