@@ -158,7 +158,7 @@ def get_player_top_rank(steam_id: str, db: Session = Depends(get_db)):
     user = getUser(db, steam_id)
     result = Crud.get_player_rank(db, user)
     if result is None: raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
-    return result[0]
+    return result
         
         
     

@@ -71,3 +71,11 @@ async def app_lifespan(app: FastAPI):
 # async def getAsyncDB():
 #     async with Models.AsyncSessionLocal() as session:
 #         yield session
+
+
+def getOrCreateBalance(db: Session, user: Models.User):
+    if db.query(Models.Balance).filter(Models.Balance.userId == user.id).first() is None:
+        db.add(Models.Balance(user=user, value=0))
+    db.commit()
+    db.refresh(user)
+    return user.balance

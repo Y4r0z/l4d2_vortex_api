@@ -4,6 +4,10 @@ from pydantic import BaseModel
 class StatusCode(BaseModel):
     status: int = 0
 
+class User(BaseModel):
+    id : int
+    steamId : str
+
 class PerkSet(BaseModel):
     survivorPerk1: str
     survivorPerk2: str
@@ -28,7 +32,7 @@ class PrivilegeStatus(BaseModel):
     id : int
     privilege : PrivilegeType
     activeUntil : datetime.datetime
-    userId : int
+    user : User
 
 class PrivilegesList(BaseModel):
     owner: bool = False
@@ -43,9 +47,7 @@ class PrivilegesList(BaseModel):
     welcomePhrase: str = ""
     discord: bool = False
 
-class User(BaseModel):
-    id : int
-    steamId : str
+
 
 
 class Balance(BaseModel):
@@ -227,4 +229,34 @@ class TopOutput(BaseModel):
     support: int
     perks: int
     total: int
-    
+
+
+
+class PlayerSummary(BaseModel):
+    steamid: str
+    communityvisibilitystate: int
+    profilestate: int
+    personaname: str
+    commentpermission: int
+    profileurl: str
+    avatar: str
+    avatarmedium: str
+    avatarfull: str
+    avatarhash: str
+    lastlogoff: int
+    personastate: int
+    realname: str
+    primaryclanid: str
+    timecreated: int
+    personastateflags: int
+    loccountrycode: str
+    locstatecode: str
+
+
+class BulkProfileInfo(BaseModel):
+    steamInfo: PlayerSummary
+    rank: int | None
+    balance: int
+    perks: PerkSet | None
+    privileges: list[PrivilegeStatus]
+    discordId: int | None

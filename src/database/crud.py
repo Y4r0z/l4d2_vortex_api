@@ -172,4 +172,5 @@ def get_player_rank(db: Session, user: Models.User) -> tuple[int] | None:
     ).group_by(Models.RoundScore.userId).alias('tbl')
     query = select(subquery.c.rank).where(subquery.c.userId == user.id)
     result = db.execute(query).first()
-    return result
+    if result is None: return None
+    return result.tuple()[0]
