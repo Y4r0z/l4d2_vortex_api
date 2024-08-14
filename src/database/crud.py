@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func, select
 import src.database.models as Models
 import src.types.api_models as Schemas
 import src.database.predefined as Predefined
@@ -163,3 +163,13 @@ def get_logs(db: Session, text: str, steam_id: str, nick: str | None, server: st
         .order_by(Models.ChatLog.time.desc()) \
         .offset(offset).limit(count).all()
     return logs
+
+
+def get_player_rank(db: Session, user: Models.User) -> tuple[int] | None:
+    subquery = select(
+        Models.RoundScore.userId, 
+        func.dense_rank().over(order_by=func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()).label('rank')
+    ).group_by(Models.RoundScore.userId).alias('tbl')
+    query = select(subquery.c.rank).where(subquery.c.userId == user.id)
+    result = db.execute(query).first()
+    return result

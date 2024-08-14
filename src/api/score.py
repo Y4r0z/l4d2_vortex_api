@@ -13,6 +13,7 @@ from fastapi_filter import FilterDepends
 from redis.asyncio import Redis # type: ignore
 import src.lib.steam_api as SteamAPI
 from sqlalchemy.sql.expression import cast
+import src.database.crud as Crud
 from sqlalchemy import Integer
 import json
 import asyncio
@@ -155,12 +156,7 @@ where userId = USER_ID;
 @score_api.get('/top/rank', response_model=int)
 def get_player_top_rank(steam_id: str, db: Session = Depends(get_db)):
     user = getUser(db, steam_id)
-    subquery = select(
-        Models.RoundScore.userId, 
-        func.dense_rank().over(order_by=func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()).label('rank')
-    ).group_by(Models.RoundScore.userId).alias('tbl')
-    query = select(subquery.c.rank).where(subquery.c.userId == user.id)
-    result = db.execute(query).first()
+    result = Crud.get_player_rank(db, user)
     if result is None: raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
     return result[0]
         
