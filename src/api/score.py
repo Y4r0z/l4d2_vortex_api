@@ -143,6 +143,7 @@ async def get_top_scores(
     result : list[dict] = []
     tasks = [createTopList(i, result, redis) for i in queryResult]
     await asyncio.gather(*tasks)
+    result = sorted(result, key=lambda x: x['rank'])
     await redis.set(rkey, json.dumps(result), ex=TOP_CACHE_TIME)
     return result
 
