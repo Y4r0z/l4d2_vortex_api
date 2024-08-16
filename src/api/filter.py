@@ -12,7 +12,7 @@ class Pagination:
         """
         @param limit: max - 250, default - 25
         """
-        self.offset = offset
+        self.offset = min(0, offset)
         self.limit = min(limit, 250)
     
     def paginate(self, query: Query | Select):
