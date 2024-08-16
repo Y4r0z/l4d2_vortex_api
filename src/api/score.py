@@ -154,12 +154,15 @@ select * from
 (select userId, dense_rank() over (order by sum(agression + support + perks) desc) as 'rank' from roundScore group by userId) tbl
 where userId = USER_ID;
 """
-@score_api.get('/top/rank', response_model=int)
+@score_api.get('/top/rank', response_model=Schemas.Rank)
 def get_player_top_rank(steam_id: str, db: Session = Depends(get_db)):
     user = getUser(db, steam_id)
-    result = Crud.get_player_rank(db, user)
+    result = Crud.get_player_rank_score(db, user)
     if result is None: raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
-    return result
+    return {
+        'rank': result[0],
+        'score': result[1]
+    }
         
         
     

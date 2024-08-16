@@ -174,3 +174,14 @@ def get_player_rank(db: Session, user: Models.User) -> tuple[int] | None:
     result = db.execute(query).first()
     if result is None: return None
     return result.tuple()[0]
+
+def get_player_rank_score(db: Session, user: Models.User) -> tuple[int, int] | None:
+    subquery = select(
+        Models.RoundScore.userId, 
+        func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).label('score'),
+        func.dense_rank().over(order_by=func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()).label('rank')
+    ).group_by(Models.RoundScore.userId).alias('tbl')
+    query = select(subquery.c.rank, subquery.c.score).where(subquery.c.userId == user.id)
+    result = db.execute(query).first()
+    if result is None: return None
+    return result.tuple()

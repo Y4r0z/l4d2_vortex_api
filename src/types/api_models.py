@@ -260,3 +260,7 @@ class BulkProfileInfo(BaseModel):
     perks: PerkSet | None
     privileges: list[PrivilegeStatus]
     discordId: int | None
+
+class Rank(BaseModel):
+    rank: int
+    score: int
