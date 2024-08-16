@@ -234,23 +234,23 @@ class TopOutput(BaseModel):
 
 class PlayerSummary(BaseModel):
     steamid: str
-    communityvisibilitystate: int
-    profilestate: int
+    communityvisibilitystate: int | None = None
+    profilestate: int | None = None
     personaname: str
-    commentpermission: int
+    commentpermission: int | None = None
     profileurl: str
     avatar: str
     avatarmedium: str
-    avatarfull: str
-    avatarhash: str
-    lastlogoff: int
-    personastate: int
-    realname: str
-    primaryclanid: str
-    timecreated: int
-    personastateflags: int
-    loccountrycode: str
-    locstatecode: str
+    avatarfull: str | None = None
+    avatarhash: str | None = None
+    lastlogoff: int | None = None
+    personastate: int | None = None
+    realname: str | None = None
+    primaryclanid: str | None = None
+    timecreated: int | None = None
+    personastateflags: int | None = None
+    loccountrycode: str | None = None
+    locstatecode: str | None = None
 
 
 class BulkProfileInfo(BaseModel):

@@ -24,13 +24,34 @@ privileges
 balance
 discord
 """
+
+def perkSetToDict(perk_set: Models.PerkSet | None) -> dict:
+    if perk_set is None: return None
+    return {
+        'survivorPerk1': perk_set.survivorPerk1,
+        'survivorPerk2': perk_set.survivorPerk2,
+        'survivorPerk3': perk_set.survivorPerk3,
+        'survivorPerk4': perk_set.survivorPerk4,
+        'boomerPerk': perk_set.boomerPerk,
+        'smokerPerk': perk_set.smokerPerk,
+        'hunterPerk': perk_set.hunterPerk,
+        'jockeyPerk': perk_set.jockeyPerk,
+        'spitterPerk': perk_set.spitterPerk,
+        'chargerPerk': perk_set.chargerPerk,
+        'tankPerk': perk_set.tankPerk
+    }
+
+
 @profile_api.get('/bulk', response_model=Schemas.BulkProfileInfo)
 async def get_bulk_profile_info(steam_id: str, cached: bool = True, db: Session = Depends(get_db), redis: Redis = Depends(getRedis)):
     user = getUser(db, steam_id)
     rkey = f'bulk_profile_info:{steam_id}'
     if (result:=(await redis.get(rkey))) is not None and cached:
         return json.loads(result)
-    steamInfo = await SteamAPI.GetPlayerSummaries(user.steamId)
+    try:   
+        steamInfo = await SteamAPI.GetPlayerSummaries(user.steamId)
+    except:
+        raise HTTPException(status_code=404, detail="Игрок не найден")
     rank = Crud.get_player_rank(db, user)
     perks = Crud.get_perks(db, user.id)
     privileges = Crud.get_privilegeStatuses(db, user.id)
@@ -41,7 +62,7 @@ async def get_bulk_profile_info(steam_id: str, cached: bool = True, db: Session 
     result = {
         'steamInfo': steamInfo,
         'rank': rank,
-        'perks': perks,
+        'perks': perkSetToDict(perks),
         'privileges': [
             {
                 'id':i.id, 
