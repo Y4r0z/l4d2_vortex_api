@@ -12,6 +12,7 @@ from src.api.items import items_api
 from src.api.inventory import inventory_api
 from src.api.tools import app_lifespan
 from src.api.profile import profile_api
+from src.api.sourcebans import sb_api
 
 def createData():
     with Session(engine) as session:
@@ -45,5 +46,5 @@ app.include_router(score_api, prefix='/score')
 app.include_router(items_api, prefix='/items')
 app.include_router(inventory_api, prefix='/inventory')
 app.include_router(profile_api, prefix='/profile')
-
+app.include_router(sb_api, prefix='/sourcebans')
 

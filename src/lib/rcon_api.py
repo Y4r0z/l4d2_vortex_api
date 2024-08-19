@@ -1,8 +1,12 @@
-from rcon.source.async_rcon import rcon
-from database.sourcebans import SbServer
+from rcon.source.async_rcon import rcon #type: ignore
+from src.database.sourcebans import SbServer, SbBan, AsyncSession
 from dataclasses import dataclass
+import time
+from sqlalchemy import select
 import re
 
+class BanExistsError(Exception):
+    ...
 
 @dataclass
 class RconPlayer:
@@ -55,3 +59,23 @@ async def kickPlayer(servers: list[SbServer], steam2id: str) -> None:
             print(f'Kicked player {p.name} from {server.ip}:{server.port}')
             breakflag = True
             break
+
+async def banPlayer(sb: AsyncSession, steamid64: str, duration: int, reason: str, name: str = 'api_ban'):
+    now = int(time.time())
+    authid = fromSteam64(steamid64) 
+    # Проверка на наличие банов
+    query = select(SbBan).filter(SbBan.authid == authid, SbBan.ends > now)
+    prevBan = (await sb.execute(query)).first()
+    if prevBan is not None:
+        raise BanExistsError(f'Player {name} already has a ban')
+    # Добавление бана
+    ban = SbBan(adminIp='0.0.0.1', authid=authid, name=name,
+                reason=reason, aid=0, sid=0, type=0,
+                created=now, ends=now+duration, length=duration)
+    sb.add(ban)
+    await sb.commit()
+    # Кик игрока с серверов
+    query2 = select(SbServer)
+    servers = [s._tuple()[0] for s in (await sb.execute(query2)).all()]
+    await kickPlayer(servers, authid)
+    
