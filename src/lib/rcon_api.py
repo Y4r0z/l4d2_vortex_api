@@ -41,7 +41,7 @@ async def rconCommand(server: SbServer, command: str, *args: str) -> str:
     )
     return response
 
-async def kickPlayer(servers: list[SbServer], steam2id: str) -> None:
+async def kickPlayer(servers: list[SbServer], steam2id: str, reason: str = 'Вы были кикнуты') -> None:
     breakflag = False
     for server in servers:
         if breakflag: break
@@ -53,7 +53,7 @@ async def kickPlayer(servers: list[SbServer], steam2id: str) -> None:
         for p in players:
             if p.steam2id != steam2id: continue
             try:
-                await rconCommand(server, 'sm_kick', f'#{p.id}')
+                await rconCommand(server, 'sm_kick', f'#{p.id}', reason)
             except:
                 continue
             print(f'Kicked player {p.name} from {server.ip}:{server.port}')
@@ -77,5 +77,5 @@ async def banPlayer(sb: AsyncSession, steamid64: str, duration: int, reason: str
     # Кик игрока с серверов
     query2 = select(SbServer)
     servers = [s._tuple()[0] for s in (await sb.execute(query2)).all()]
-    await kickPlayer(servers, authid)
+    await kickPlayer(servers, authid, reason=f'Бан: {reason}')
     
