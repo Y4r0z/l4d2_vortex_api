@@ -51,7 +51,9 @@ def get_privileges(db: Session, user_id: int) -> Schemas.PrivilegesList:
     prv.premium = __checkPriv(db, user_id, Predefined.PrivilegeTypes['premium'].id)
     prv.legend = __checkPriv(db, user_id, Predefined.PrivilegeTypes['legend'].id)
     phrase = db.query(Models.WelcomePhrase).filter(Models.WelcomePhrase.userId == user_id).first()
-    prv.welcomePhrase = phrase.phrase if __checkPriv(db, user_id, Predefined.PrivilegeTypes['welcomePhrase'].id) and phrase is not None else ""
+    wp = __checkPriv(db, user_id, Predefined.PrivilegeTypes['welcomePhrase'].id) \
+        or __checkPriv(db, user_id, Predefined.PrivilegeTypes['legend'].id)
+    prv.welcomePhrase = phrase.phrase if wp and phrase is not None else ""
     prefix = db.query(Models.CustomPrefix).filter(Models.CustomPrefix.userId == user_id).first()
     prv.customPrefix = prefix.prefix if __checkPriv(db, user_id, Predefined.PrivilegeTypes['customPrefix'].id) and prefix is not None else ""
     prv.discord = db.query(Models.SteamDiscordLink).filter(Models.SteamDiscordLink.userId == user_id).first() is not None
