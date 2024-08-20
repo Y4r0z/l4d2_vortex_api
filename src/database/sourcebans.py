@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy import create_engine
 import src.settings as settings
 
 from sqlalchemy.sql.schema import Column, Index, Table
@@ -10,8 +11,15 @@ from sqlalchemy.schema import FetchedValue
 sb_engine = create_async_engine(settings.SOURCEBANS_CONNECT_STRING)
 sb_session = async_sessionmaker(sb_engine)
 
+sb_engine_sync = create_engine(settings.SOURCEBANS_CONNECT_STRING.replace('aiomysql', 'pymysql'))
+sb_session_sync = sessionmaker(sb_engine_sync)
+
 async def getSourcebans():
     async with sb_session() as session:
+        yield session
+        
+def getSourcebansSync():
+    with sb_session_sync() as session:
         yield session
 
 class SbBase(DeclarativeBase):

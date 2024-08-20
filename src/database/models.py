@@ -265,6 +265,21 @@ class UserInventory(IDModel):
     itemId: Mapped[int] = column(ForeignKey('l4d2Item.id', ondelete='cascade'))
     item: Mapped["L4D2Item"] = relationship('L4D2Item', foreign_keys='UserInventory.itemId')
     activeUntil: Mapped[datetime.datetime] = column(DateTime(timezone=True))
+
+
+
+class ServerStats(IDModel):
+    __tablename__ ='serverStats'
+    time: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+    players: Mapped[int] = column(Integer)
+    maxPlayers: Mapped[int] = column(Integer)
+    map: Mapped[str] = column(String(32))
+    name: Mapped[str] = column(String(64))
+    ping: Mapped[int] = column(Integer)
+    ip: Mapped[str] = column(String(32))
+    port: Mapped[int] = column(Integer)
+    sid: Mapped[int] = column(Integer)
+    
     
     
     

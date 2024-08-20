@@ -264,3 +264,23 @@ class BulkProfileInfo(BaseModel):
 class Rank(BaseModel):
     rank: int
     score: int
+
+
+
+class ServerPlayer(BaseModel):
+    id: int
+    name: str
+    ip: str
+    steamId: str
+class ServerInfo(BaseModel):
+    id: int
+    name: str
+    map: str
+    playersCount: int
+    maxPlayersCount: int
+    ping: float
+    ip: str
+    port: int | str
+    keywords: str | None
+    time: datetime.datetime
+    players: list[ServerPlayer]
