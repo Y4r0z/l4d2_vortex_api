@@ -13,6 +13,14 @@ class A2SServer:
     ping: float
     keywords: str
 
+@dataclass
+class A2SPlayer:
+    index: int
+    name: str
+    score: int
+    duration: float
+    
+
 async def getServerInfoAsync(server: SbServer) -> A2SServer:
     address = (server.ip, server.port)
     info = await a2s.ainfo(address, encoding='utf-8')
@@ -36,3 +44,11 @@ def getServerInfo(server: SbServer) -> A2SServer:
         info.ping,
         keywords=info.keywords
     )
+
+def getServerPlayers(server: SbServer) -> list[A2SPlayer]:
+    address = (server.ip, server.port)
+    players = a2s.players(address, encoding='utf-8')
+    return [
+        A2SPlayer(i.index, i.name, i.score, i.duration) 
+        for i in players
+    ]

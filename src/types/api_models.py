@@ -271,6 +271,7 @@ class ServerPlayer(BaseModel):
     id: int
     name: str
     ip: str
+    time: float = 0
     steamId: str
 class ServerInfo(BaseModel):
     id: int

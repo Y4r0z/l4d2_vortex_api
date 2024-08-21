@@ -5,7 +5,7 @@ from src.api.tools import get_db
 from src.database.sourcebans import getSourcebansSync, SbServer
 from src.database.models import ServerStats
 from src.lib.rcon_api import getRconPlayers
-from src.lib.source_query import getServerInfo
+from src.lib.source_query import getServerInfo, getServerPlayers
 import datetime
 import redis
 import logging
@@ -40,6 +40,7 @@ def fetch_server_info():
     servers = [s._tuple()[0] for s in sb.execute(serversQuery).all()]
     for server in servers:
         players = []
+        a2sPlayers = getServerPlayers(server)
         try:
             serverInfo = getServerInfo(server)
         except:
@@ -47,10 +48,16 @@ def fetch_server_info():
             continue
         try:
             for p in getRconPlayers(server):
+                try:
+                    tt = next(p2 for p2 in a2sPlayers if p2.name == p.name).duration
+                except Exception as e:
+                    logging.info(f"Failed to get player duration: {str(e)}")
+                    tt = 0
                 players.append({
                     'id': p.id,
                     'ip': p.ip,
                     'name': p.name,
+                    'time': tt,
                     'steamId': p.steam64id
                 })
         except Exception as e:
@@ -59,7 +66,7 @@ def fetch_server_info():
             'id': server.sid,
             'name': serverInfo.server_name,
             'map': serverInfo.map_name,
-            'playerCount': serverInfo.player_count,
+            'playersCount': serverInfo.player_count,
             'maxPlayersCount': serverInfo.max_players,
             'ip': server.ip,
             'port': server.port,
