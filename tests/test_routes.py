@@ -320,7 +320,3 @@ def test_inventory():
     # Test inventory item deletion
     response = client.delete(f'inventory?inventory_item_id={inventoryItem["id"]}')
     assert response.status_code == 200
-    
-    
-
-    
