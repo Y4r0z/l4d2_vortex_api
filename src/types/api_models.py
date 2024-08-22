@@ -285,3 +285,8 @@ class ServerInfo(BaseModel):
     keywords: str | None
     time: datetime.datetime
     players: list[ServerPlayer]
+
+class GroupInfo(BaseModel):
+    membersCount: int
+    membersInGame: int
+    membersOnline: int

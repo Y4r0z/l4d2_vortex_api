@@ -1,4 +1,5 @@
 from celery import Celery # type: ignore
+from celery.signals import worker_ready #type: ignore
 import src.settings as settings
 from sqlalchemy import select
 from src.api.tools import get_db
@@ -10,6 +11,8 @@ import datetime
 import redis
 import logging
 import json
+import xml.etree.ElementTree as ET
+import httpx
 
 celery = Celery(__name__)
 celery.conf.broker_url = settings.CELERY_BROKER_URL
@@ -20,15 +23,15 @@ redis_pool = redis.ConnectionPool.from_url(settings.REDIS_CONNECT_STRING, db=1)
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
     sender.add_periodic_task(60.0, fetch_server_info.s(), name='fetch_servers')
+    sender.add_periodic_task(80400.0, parse_group.s(), name='parse_group')
+
+@worker_ready.connect
+def at_start(sender, **kwargs):
+    with sender.app.connection() as conn:
+        sender.app.send_task('src.celery.tasks.parse_group', connection=conn)
 
 
 
-
-@celery.task
-def print_test():
-    with redis.Redis(connection_pool=redis_pool) as r:
-        r.set('celery_test', datetime.datetime.now().isoformat())
-    logging.info('Redis SET TEST LOG')
 
 @celery.task
 def fetch_server_info():
@@ -90,4 +93,29 @@ def fetch_server_info():
         db.add(serverObj)
     db.commit()
     logging.info('Servers fetched')
-            
+
+
+
+@celery.task
+def parse_group():
+    logging.info('Parsing group info')
+    group_href = 'https://steamcommunity.com/groups/vortexl4d4'
+    href = f'{group_href}/memberslistxml/?xml=1'
+
+    response = httpx.get(href)
+    data = response.text
+
+    root = ET.fromstring(data)
+    root = root.find('groupDetails')
+
+    membersCount = int(root.find('memberCount').text)
+    membersInGame = int(root.find('membersInGame').text)
+    membersOnline = int(root.find('membersOnline').text)
+
+    with redis.Redis(connection_pool=redis_pool) as r:
+        r.set('group_info', json.dumps({
+            'membersCount': membersCount,
+            'membersInGame': membersInGame,
+            'membersOnline': membersOnline
+        }), ex=86400*3)
+    logging.info('Group info parsed')

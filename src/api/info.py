@@ -24,3 +24,13 @@ async def get_all_servers(redis: Redis = Depends(getRedis), sb: AsyncSession = D
         cached = await redis.get(f'server_info:{server.sid}')
         if cached is not None: result.append(json.loads(cached))
     return result
+
+@info_api.get('/group', response_model=Schemas.GroupInfo)
+async def get_group_info(redis: Redis = Depends(getRedis)):
+    """
+    Возвращает информацию о группе Steam.\n
+    """
+    group_info = await redis.get('group_info')
+    if group_info is None:
+        raise HTTPException(status_code=404, detail="Group info not found")
+    return json.loads(group_info)
