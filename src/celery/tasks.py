@@ -117,5 +117,5 @@ def parse_group():
             'membersCount': membersCount,
             'membersInGame': membersInGame,
             'membersOnline': membersOnline
-        }), ex=86400*3)
+        }), ex=3600)
     logging.info('Group info parsed')
