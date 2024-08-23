@@ -8,6 +8,8 @@ from sqlalchemy import create_engine
 from src.settings import SQL_CONNECT_STRING
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
+#'2050-01-01T00:00:00'
+BoostyPrivilegeUntil = datetime.datetime(year=2050, month=1, day=1, hour=0, minute=0, second=0)
 
 engine = create_engine(SQL_CONNECT_STRING)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

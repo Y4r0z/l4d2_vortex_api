@@ -290,3 +290,9 @@ class GroupInfo(BaseModel):
     membersCount: int
     membersInGame: int
     membersOnline: int
+
+
+class PrivilegedUserInfo(BaseModel):
+    steamId: str
+    privilege: PrivilegeType
+    steamInfo: PlayerSummary
