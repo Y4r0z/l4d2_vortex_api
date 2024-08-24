@@ -59,7 +59,9 @@ async def createPrivilegedList(user: Models.User, result: list, redis: Redis, pr
     else:
         steamInfo = json.loads(steamInfo)
     ff = max if isMax else min
-    privilege = ff(privileges, key=lambda x: x.privilegeId).privilege
+    privilegeStatus = ff(privileges, key=lambda x: x.privilegeId)
+    privilege = privilegeStatus.privilege
+    if privilegeStatus.activeUntil < datetime.datetime.now(): return
     result.append(
         {
         'steamId':  steamId,
@@ -72,7 +74,8 @@ async def createPrivilegedList(user: Models.User, result: list, redis: Redis, pr
         }
         }
     )
-
+def isBoostyDatetime(d: datetime.datetime) -> bool:
+    return d.isoformat()[:19] == Models.BoostyPrivilegeUntil.isoformat()[:19]
 
 @info_api.get('/donaters', response_model=list[Schemas.PrivilegedUserInfo])
 async def get_donaters(db: Session = Depends(get_db), redis: Redis = Depends(getRedis)):
