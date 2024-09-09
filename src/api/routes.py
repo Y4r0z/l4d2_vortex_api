@@ -34,7 +34,8 @@ def get_privileges_all(steam_id: str, db: Session = Depends(get_db)):
     return Crud.get_privilegeStatuses(db, user.id)
 
 @api.delete('/privilege')
-def remove_privilege(id: int, db: Session = Depends(get_db)):
+def remove_privilege(id: int, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    checkToken(db, token)
     if not Crud.get_privilegeStatus(db, id): raise HTTPException(status_code=404, detail="Privilege not found!")
     Crud.delete_privilegeStatus(db, id)
     return "removed"
