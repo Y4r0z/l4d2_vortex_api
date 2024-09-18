@@ -15,7 +15,8 @@ services:
       timeout: 10s
       retries: 5
     volumes:
-    - vortex-l4d2-database:/var/lib/mysql
+      - vortex-l4d2-database:/var/lib/mysql
+    restart: always
   
   redis:
     image: redis:latest
@@ -34,6 +35,7 @@ services:
       - --save 900 1 
       - --save 300 10 
       - --save 60 1000
+    restart: always
     
   l4d2vortexapi:
     container_name: l4d2vortexapi
@@ -47,7 +49,7 @@ services:
       - .env
     ports:
       - 3005:3005
-    restart: on-failure
+    restart: always
     depends_on:
       - vortex_l4d2_db
       - redis
@@ -61,11 +63,12 @@ services:
       - .env
     volumes:
       - celery-data:/user/src/app
-    command:  celery -A src.celery.tasks.celery worker --loglevel=info
+    command: celery -A src.celery.tasks.celery worker --loglevel=info
     depends_on:
       - vortex_l4d2_db
       - l4d2vortexapi
       - redis
+    restart: always
     
   celery_beat:
     build:
@@ -78,6 +81,7 @@ services:
       - celery-data:/user/src/app
     depends_on:
       - redis
+    restart: always
 
   flower:
     build:
@@ -87,10 +91,11 @@ services:
       - .env
     command: celery --broker=${CELERY_BROKER_URL} flower --port=5555 --basic-auth=root:${FLOWER_PASSWORD}
     ports:
-    - 5555:5555
+      - 5555:5555
     depends_on:
       - worker
       - redis
+    restart: always
 
   phpmyadmin:
     image: phpmyadmin:latest
@@ -100,7 +105,7 @@ services:
       - 3337:80
     env_file:
       - .env
-    restart: unless-stopped
+    restart: always
     depends_on:
       - vortex_l4d2_db
 
