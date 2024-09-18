@@ -66,7 +66,10 @@ def getRedis():
 async def app_lifespan(app: FastAPI):
     ...
     yield
-    await getRedis().bgsave()
+    try:
+        await getRedis().save()
+    except:
+        print ("Не удалось сохранить Redis")
     
 # async def getAsyncDB():
 #     async with Models.AsyncSessionLocal() as session:
