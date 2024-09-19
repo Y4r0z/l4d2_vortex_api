@@ -47,7 +47,7 @@ def getServerInfo(server: SbServer) -> A2SServer:
 
 def getServerPlayers(server: SbServer) -> list[A2SPlayer]:
     address = (server.ip, server.port)
-    players = a2s.players(address, encoding='utf-8')
+    players = a2s.players(address, timeout=5, encoding='utf-8')
     return [
         A2SPlayer(i.index, i.name, i.score, i.duration) 
         for i in players
