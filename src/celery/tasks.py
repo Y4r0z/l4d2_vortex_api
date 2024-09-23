@@ -23,7 +23,7 @@ redis_pool = redis.ConnectionPool.from_url(settings.REDIS_CONNECT_STRING, db=1)
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
     sender.add_periodic_task(60.0, fetch_server_info.s(), name='fetch_servers')
-    sender.add_periodic_task(80400.0, parse_group.s(), name='parse_group')
+    sender.add_periodic_task(1800.0, parse_group.s(), name='parse_group')
 
 @worker_ready.connect
 def at_start(sender, **kwargs):
