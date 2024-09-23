@@ -13,7 +13,8 @@ import json
 import asyncio
 import logging
 
-
+from celery import Celery
+celery_app = Celery('tasks', broker='redis://localhost:6379/0')
 
 info_api = APIRouter()
 DONATER_CACHE_TIME = 86400
@@ -38,8 +39,20 @@ async def get_group_info(redis: Redis = Depends(getRedis)):
     """
     group_info = await redis.get('group_info')
     if group_info is None:
-        raise HTTPException(status_code=404, detail="Group info not found")
-    return json.loads(group_info)
+        celery_app.send_task('src.celery.tasks.parse_group')
+        await asyncio.sleep(5)
+        group_info = await redis.get('group_info')
+        if group_info is None:
+            raise HTTPException(status_code=404, detail="Group info not found")
+    
+    data = json.loads(group_info)
+    if 'timestamp' not in data:
+        data['timestamp'] = datetime.datetime.now().timestamp()
+        await redis.set('group_info', json.dumps(data), ex=3600)
+    elif datetime.datetime.now().timestamp() - data['timestamp'] > 1800:
+        celery_app.send_task('src.celery.tasks.parse_group')
+    
+    return data
 
 
 
