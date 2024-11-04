@@ -33,17 +33,21 @@ async def getServerInfoAsync(server: SbServer) -> A2SServer:
         keywords=info.keywords
     )
 
-def getServerInfo(server: SbServer) -> A2SServer:
+def getServerInfo(server: SbServer, timeout: int = 5) -> A2SServer:
     address = (server.ip, server.port)
-    info = a2s.info(address, encoding='utf-8')
-    return A2SServer(
-        info.server_name,
-        info.map_name,
-        info.player_count,
-        info.max_players,
-        info.ping,
-        keywords=info.keywords
-    )
+    try:
+        info = a2s.info(address, timeout=timeout, encoding='utf-8')
+        return A2SServer(
+            info.server_name,
+            info.map_name,
+            info.player_count,
+            info.max_players,
+            info.ping,
+            keywords=info.keywords
+        )
+    except Exception as e:
+        logging.error(f"A2S info error for {server.ip}:{server.port}: {str(e)}")
+        raise
 
 def getServerPlayers(server: SbServer) -> list[A2SPlayer]:
     address = (server.ip, server.port)
