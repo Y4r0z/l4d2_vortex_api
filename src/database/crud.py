@@ -154,17 +154,34 @@ def create_logs(db: Session, logs: List[Schemas.ChatLog]):
         db.add(obj)
     db.commit()
 
+def get_logs_count(db: Session, text: str, steam_id: str, nick: str | None, server: str, start_time: datetime.datetime, end_time: datetime.datetime) -> int:
+    """Получает общее количество логов с учетом фильтров"""
+    query = db.query(Models.ChatLog) \
+        .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
+        .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
+        .filter(Models.ChatLog.nickname.like(f'%{nick}%') if nick is not None else Models.ChatLog.id > 0) \
+        .filter(Models.ChatLog.text.like(f'%{text}%')) \
+        .filter(Models.ChatLog.server.like(f'%{server}%'))
+    return query.count()
+
 def get_logs(db: Session, text: str, steam_id: str, nick: str | None, server: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
-    count = min(count, 512)
-    logs = db.query(Models.ChatLog) \
+    """Получает логи с пагинацией и фильтрацией"""
+    count = min(count, 100)  # Уменьшаем максимальный лимит для лучшей производительности
+    query = db.query(Models.ChatLog) \
         .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
         .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
         .filter(Models.ChatLog.nickname.like(f'%{nick}%') if nick is not None else Models.ChatLog.id > 0) \
         .filter(Models.ChatLog.text.like(f'%{text}%')) \
         .filter(Models.ChatLog.server.like(f'%{server}%')) \
-        .order_by(Models.ChatLog.time.desc()) \
-        .offset(offset).limit(count).all()
-    return logs
+        .order_by(Models.ChatLog.time.desc())
+    
+    # Добавляем индексы для оптимизации
+    if not hasattr(Models.ChatLog.__table__.c.time, 'index'):
+        Models.ChatLog.__table__.c.time.create_index()
+    if not hasattr(Models.ChatLog.__table__.c.steamId, 'index'):
+        Models.ChatLog.__table__.c.steamId.create_index()
+    
+    return query.offset(offset).limit(count).all()
 
 
 def get_player_rank(db: Session, user: Models.User) -> tuple[int] | None:

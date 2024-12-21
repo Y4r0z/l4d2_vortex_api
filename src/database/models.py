@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date, Table, Column
+from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date, Table, Column, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column as column, relationship, sessionmaker
 from sqlalchemy.sql import func as sqlFunc
 from typing import List, Optional
@@ -24,6 +24,9 @@ class IDModel(Base):
 
 class User(IDModel):
     __tablename__ = "user"
+    __table_args__ = (
+        Index('idx_user_steam_id', 'steamId'),
+    )
     steamId : Mapped[str] = column(String(128))
     perks : Mapped[List["PerkSet"]] = relationship(back_populates='user')
     privileges : Mapped[List["PrivilegeStatus"]] = relationship(back_populates='user')
@@ -71,7 +74,11 @@ class PrivilegeType(IDModel):
 
 class PrivilegeStatus(IDModel):
     __tablename__ = "privilegeStatus"
-
+    __table_args__ = (
+        Index('idx_privilege_status_user', 'userId'),
+        Index('idx_privilege_status_active', 'activeUntil'),
+    )
+    
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='privileges', cascade='all,delete')
 
@@ -112,6 +119,10 @@ class Balance(IDModel):
 
 class Transaction(IDModel):
     __tablename__ = "transaction"
+    __table_args__ = (
+        Index('idx_transaction_time', 'time'),
+        Index('idx_transaction_balance', 'balanceId'),
+    )
     balanceId: Mapped[int] = column(ForeignKey('balance.id'))
     balance: Mapped["Balance"] = relationship(back_populates='transactions')
     value: Mapped[int] = column(Integer, default=0)
@@ -137,6 +148,13 @@ class SteamDiscordLink(IDModel):
 
 class ChatLog(IDModel):
     __tablename__ = 'chatLogs'
+    __table_args__ = (
+        Index('idx_chat_logs_time', 'time'),
+        Index('idx_chat_logs_steam_id', 'steamId'),
+        Index('idx_chat_logs_server', 'server'),
+        Index('idx_chat_logs_nickname', 'nickname'),
+    )
+    
     steamId : Mapped[str] = column(String(64))
     nickname: Mapped[str] = column(String(64), nullable=True, default=None)
     text: Mapped[str] = column(Text)
@@ -281,8 +299,3 @@ class ServerStats(IDModel):
     ip: Mapped[str] = column(String(32))
     port: Mapped[int] = column(Integer)
     sid: Mapped[int] = column(Integer)
-    
-    
-    
-    
-    
