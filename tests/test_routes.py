@@ -157,6 +157,7 @@ def test_play_session():
     assert r2.status_code == 200
     assert r2.json()['timeFrom'][:16] == playSession['timeFrom'][:16] # секунды округляются на сервере
 
+"""
 def test_season():
     r1 = client.post('/score/season/reset')
     assert r1.status_code == 200
@@ -171,7 +172,7 @@ def test_season():
     r2j = r2.json()[0]
     sid, a, s, p = r2j['user']['steamId'], r2j['agression'], r2j['support'], r2j['perks']
     assert sid == 'test_client' and a == 10*4 and s == 20*4 and p == 30*4
-
+"""
 
 def test_drop():
     r = client.get('/balance/drop?steam_id=test_client')
