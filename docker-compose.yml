@@ -49,6 +49,8 @@ services:
       - .env
     ports:
       - 3005:3005
+    volumes:
+      - ./logs:/app/logs
     restart: always
     depends_on:
       - vortex_l4d2_db
@@ -63,6 +65,7 @@ services:
       - .env
     volumes:
       - celery-data:/user/src/app
+      - ./logs:/app/logs
     command: celery -A src.celery.tasks.celery worker --loglevel=info
     depends_on:
       - vortex_l4d2_db
@@ -79,6 +82,7 @@ services:
     command: celery -A src.celery.tasks.celery beat --loglevel=info
     volumes:
       - celery-data:/user/src/app
+      - ./logs:/app/logs
     depends_on:
       - redis
     restart: always
@@ -92,6 +96,8 @@ services:
     command: celery --broker=${CELERY_BROKER_URL} flower --port=5555 --basic-auth=root:${FLOWER_PASSWORD}
     ports:
       - 5555:5555
+    volumes:
+      - ./logs:/app/logs
     depends_on:
       - worker
       - redis
