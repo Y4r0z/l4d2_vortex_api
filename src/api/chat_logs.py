@@ -1,49 +1,60 @@
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, Query
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
-from sqlalchemy.orm import Session, Query
-from typing import Optional, List
+from sqlalchemy.orm import Session
+from typing import List
 import datetime
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
-from src.utils.pagination import PaginationParams, paginate, PaginatedResponse
-from src.utils.cache import cache_manager
-
-
+from src.services.logger import api_logger
 logs_api = APIRouter()
-
-
 @logs_api.post('')
-def create_log(logs: List[Schemas.ChatLog], db: Session = Depends(get_db), token: str = Depends(requireToken)):
-    checkToken(db, token)
-    Crud.create_logs(db, logs)
-    # Инвалидируем кэш логов после создания новых
-    cache_manager.invalidate("logs:*")
-    return {'message': f'success; added {len(logs)} new lines.'}
-
-
-@logs_api.get('', response_model=PaginatedResponse[Schemas.ChatLog])
-@cache_manager.cached(expire_time=300)  # кэшируем на 5 минут
+async def create_log(
+    logs: List[Schemas.ChatLog],
+    db: Session = Depends(get_db),
+    token: str = Depends(requireToken)
+):
+    """
+    Создает новые записи логов чата
+    """
+    try:
+        checkToken(db, token)
+        
+        Crud.create_logs(db, logs)
+        return {'message': f'success; added {len(logs)} new lines.'}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error occurred when creating logs"
+        )
+@logs_api.get('', response_model=List[Schemas.ChatLog])
 async def get_logs(
-    text: str = '',
-    steam_id: str = '',
-    nickname: str | None = None,
-    server: str = '',
-    pagination: PaginationParams = Depends(PaginationParams),
-    start_time: datetime.datetime = datetime.datetime(2000, 1, 1),
-    end_time: datetime.datetime = datetime.datetime(2100, 1, 1),
+    text: str = Query('', description="Текст для поиска в сообщениях"),
+    steam_id: str = Query('', description="SteamID для фильтрации"),
+    nickname: str = Query(None, description="Никнейм для фильтрации"),
+    server: str = Query('', description="Имя сервера для фильтрации"),
+    offset: int = Query(0, ge=0, description="Смещение для пагинации"),
+    limit: int = Query(25, ge=1, le=100, description="Количество записей на страницу"),
+    start_time: datetime.datetime = Query(
+        default=datetime.datetime(2000, 1, 1),
+        description="Начало временного диапазона"
+    ),
+    end_time: datetime.datetime = Query(
+        default=datetime.datetime.now() + datetime.timedelta(days=1),
+        description="Конец временного диапазона"
+    ),
     db: Session = Depends(get_db)
 ):
-    # Получаем общее количество записей для пагинации
-    total = Crud.get_logs_count(
-        db, text, steam_id, nickname, server, start_time, end_time
-    )
-    
-    # Получаем записи с учетом пагинации
-    logs = Crud.get_logs(
-        db, text, steam_id, nickname, server,
-        pagination.offset, pagination.page_size,
-        start_time, end_time
-    )
-    
-    # Формируем пагинированный ответ
-    return paginate(logs, total, pagination)
+    """
+    Получает логи чата с возможностью фильтрации и пагинации
+    """
+    try:
+        logs = Crud.get_logs(db, text, steam_id, nickname, server, offset, limit, start_time, end_time)
+        
+        return logs
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve chat logs due to server error"
+        )
