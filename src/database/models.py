@@ -1,10 +1,11 @@
-from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date, Table, Column, Index
+from sqlalchemy import ForeignKey, String, Integer, Float, DateTime, Text, SmallInteger, Date, Table, Column
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column as column, relationship, sessionmaker
 from sqlalchemy.sql import func as sqlFunc
 from typing import List, Optional
 import datetime
 import os
 from sqlalchemy import create_engine
+from sqlalchemy import Index, event
 from src.settings import SQL_CONNECT_STRING
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
@@ -24,9 +25,6 @@ class IDModel(Base):
 
 class User(IDModel):
     __tablename__ = "user"
-    __table_args__ = (
-        Index('idx_user_steam_id', 'steamId'),
-    )
     steamId : Mapped[str] = column(String(128))
     perks : Mapped[List["PerkSet"]] = relationship(back_populates='user')
     privileges : Mapped[List["PrivilegeStatus"]] = relationship(back_populates='user')
@@ -35,6 +33,8 @@ class User(IDModel):
     customPrefixes : Mapped[List["CustomPrefix"]] = relationship(back_populates='user')
     balance : Mapped["Balance"] = relationship(back_populates='user')
     discordLink : Mapped["SteamDiscordLink"] = relationship(back_populates='user')
+    music: Mapped["PlayerMusic"] = relationship(back_populates='user', uselist=False)
+    volume: Mapped["PlayerVolume"] = relationship(back_populates='user', uselist=False)
 
 
 class PerkSet(IDModel):
@@ -74,11 +74,7 @@ class PrivilegeType(IDModel):
 
 class PrivilegeStatus(IDModel):
     __tablename__ = "privilegeStatus"
-    __table_args__ = (
-        Index('idx_privilege_status_user', 'userId'),
-        Index('idx_privilege_status_active', 'activeUntil'),
-    )
-    
+
     userId : Mapped[int] = column(ForeignKey('user.id'))
     user : Mapped["User"] = relationship(back_populates='privileges', cascade='all,delete')
 
@@ -86,6 +82,11 @@ class PrivilegeStatus(IDModel):
     privilege : Mapped["PrivilegeType"] = relationship(back_populates='statuses')
 
     activeUntil : Mapped[datetime.datetime] = column(DateTime(timezone=True), default=sqlFunc.now())
+
+    __table_args__ = (
+        Index('idx_privstatus_user_priv', 'userId', 'privilegeId'),
+        Index('idx_privstatus_active', 'activeUntil'),
+    )
 
 
 class AuthToken(IDModel):
@@ -119,10 +120,6 @@ class Balance(IDModel):
 
 class Transaction(IDModel):
     __tablename__ = "transaction"
-    __table_args__ = (
-        Index('idx_transaction_time', 'time'),
-        Index('idx_transaction_balance', 'balanceId'),
-    )
     balanceId: Mapped[int] = column(ForeignKey('balance.id'))
     balance: Mapped["Balance"] = relationship(back_populates='transactions')
     value: Mapped[int] = column(Integer, default=0)
@@ -146,15 +143,12 @@ class SteamDiscordLink(IDModel):
     user : Mapped["User"] = relationship(back_populates='discordLink')
     discordId : Mapped[int] = column(String(64))
 
+    __table_args__ = (
+        Index('idx_discordlink_discordid', 'discordId'),
+    )
+
 class ChatLog(IDModel):
     __tablename__ = 'chatLogs'
-    __table_args__ = (
-        Index('idx_chat_logs_time', 'time'),
-        Index('idx_chat_logs_steam_id', 'steamId'),
-        Index('idx_chat_logs_server', 'server'),
-        Index('idx_chat_logs_nickname', 'nickname'),
-    )
-    
     steamId : Mapped[str] = column(String(64))
     nickname: Mapped[str] = column(String(64), nullable=True, default=None)
     text: Mapped[str] = column(Text)
@@ -162,6 +156,13 @@ class ChatLog(IDModel):
     server : Mapped[str] = column(String(32), default='None')
     team : Mapped[int] = column(SmallInteger, default=0)
     chatTeam : Mapped[int] = column(SmallInteger, default=0)
+
+    __table_args__ = (
+        Index('idx_chatlog_time', 'time'),
+        Index('idx_chatlog_steamid', 'steamId'),
+        Index('idx_chatlog_server', 'server'),
+        Index('idx_chatlog_nickname', 'nickname'),
+    )
 
 
 class RoundScore(IDModel):
@@ -299,3 +300,26 @@ class ServerStats(IDModel):
     ip: Mapped[str] = column(String(32))
     port: Mapped[int] = column(Integer)
     sid: Mapped[int] = column(Integer)
+    
+    
+    
+class PlayerMusic(IDModel):
+    __tablename__ = "player_music"
+    
+    soundname: Mapped[str] = column(String(255), nullable=False)
+    path: Mapped[str] = column(String(255), nullable=False)
+    url: Mapped[str] = column(String(255), nullable=True)
+    playcount: Mapped[int] = column(Integer, default=0)
+    updated_at: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now(), onupdate=sqlFunc.now())
+    
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship(back_populates='music')
+
+class PlayerVolume(IDModel):
+    __tablename__ = "player_volume"
+    
+    volume: Mapped[int] = column(Integer, default=50)
+    updated_at: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now(), onupdate=sqlFunc.now())
+    
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship(back_populates='volume')

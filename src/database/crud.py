@@ -131,7 +131,11 @@ def get_discord(db: Session, discord_id: str) -> Models.SteamDiscordLink | None:
     return link
 
 def create_discord(db: Session, user : Models.User, discord_id: str) -> Models.SteamDiscordLink:
-    link = Models.SteamDiscordLink(discordId=discord_id, user=user)
+    existing = db.query(Models.SteamDiscordLink).filter(Models.SteamDiscordLink.discordId == discord_id).first()
+    if existing:
+        db.delete(existing)
+        
+    link = Models.SteamDiscordLink(discordId=discord_id, userId=user.id)
     db.add(link)
     db.commit()
     db.refresh(link)
@@ -149,39 +153,55 @@ def get_discord_steam(db: Session, user: Models.User) -> Models.SteamDiscordLink
 
 
 def create_logs(db: Session, logs: List[Schemas.ChatLog]):
-    for log in logs:
-        obj = Models.ChatLog(steamId=log.steamId, nickname=log.nickname, text=log.text, time=log.time, server=log.server, team=log.team, chatTeam=log.chatTeam)
-        db.add(obj)
-    db.commit()
-
-def get_logs_count(db: Session, text: str, steam_id: str, nick: str | None, server: str, start_time: datetime.datetime, end_time: datetime.datetime) -> int:
-    """Получает общее количество логов с учетом фильтров"""
-    query = db.query(Models.ChatLog) \
-        .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
-        .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
-        .filter(Models.ChatLog.nickname.like(f'%{nick}%') if nick is not None else Models.ChatLog.id > 0) \
-        .filter(Models.ChatLog.text.like(f'%{text}%')) \
-        .filter(Models.ChatLog.server.like(f'%{server}%'))
-    return query.count()
+    """
+    Создает новые записи логов чата с обработкой ошибок
+    """
+    try:
+        chat_logs = [
+            Models.ChatLog(
+                steamId=log.steamId, 
+                nickname=log.nickname, 
+                text=log.text, 
+                time=log.time, 
+                server=log.server, 
+                team=log.team, 
+                chatTeam=log.chatTeam
+            ) 
+            for log in logs
+        ]
+        db.bulk_save_objects(chat_logs)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise
 
 def get_logs(db: Session, text: str, steam_id: str, nick: str | None, server: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
-    """Получает логи с пагинацией и фильтрацией"""
-    count = min(count, 100)  # Уменьшаем максимальный лимит для лучшей производительности
-    query = db.query(Models.ChatLog) \
-        .filter(and_(Models.ChatLog.time > start_time, Models.ChatLog.time < end_time)) \
-        .filter(Models.ChatLog.steamId.like(f'%{steam_id}%')) \
-        .filter(Models.ChatLog.nickname.like(f'%{nick}%') if nick is not None else Models.ChatLog.id > 0) \
-        .filter(Models.ChatLog.text.like(f'%{text}%')) \
-        .filter(Models.ChatLog.server.like(f'%{server}%')) \
-        .order_by(Models.ChatLog.time.desc())
-    
-    # Добавляем индексы для оптимизации
-    if not hasattr(Models.ChatLog.__table__.c.time, 'index'):
-        Models.ChatLog.__table__.c.time.create_index()
-    if not hasattr(Models.ChatLog.__table__.c.steamId, 'index'):
-        Models.ChatLog.__table__.c.steamId.create_index()
-    
-    return query.offset(offset).limit(count).all()
+    """
+    Получает логи чата с оптимизированными запросами
+    """
+    try:
+        count = min(count, 100)
+        
+        query = db.query(Models.ChatLog).filter(
+            Models.ChatLog.time.between(start_time, end_time)
+        )
+        
+        if steam_id:
+            query = query.filter(Models.ChatLog.steamId.like(f'%{steam_id}%'))
+        
+        if nick is not None:
+            query = query.filter(Models.ChatLog.nickname.like(f'%{nick}%'))
+        
+        if text:
+            query = query.filter(Models.ChatLog.text.like(f'%{text}%'))
+        
+        if server:
+            query = query.filter(Models.ChatLog.server.like(f'%{server}%'))
+            
+        # Сортируем и применяем пагинацию
+        return query.order_by(Models.ChatLog.time.desc()).offset(offset).limit(count).all()
+    except Exception as e:
+        raise
 
 
 def get_player_rank(db: Session, user: Models.User) -> tuple[int] | None:
@@ -204,3 +224,83 @@ def get_player_rank_score(db: Session, user: Models.User) -> tuple[int, int] | N
     result = db.execute(query).first()
     if result is None: return None
     return result.tuple()
+
+def get_player_music(db: Session, user_id: int) -> Models.PlayerMusic | None:
+    return db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
+
+def set_player_music(db: Session, user_id: int, music_data: Schemas.PlayerMusic.Input) -> Models.PlayerMusic:
+    music = db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
+    if music:
+        music.soundname = music_data.soundname
+        music.path = music_data.path
+        if music_data.url is not None:
+            music.url = music_data.url
+    else:
+        music = Models.PlayerMusic(
+            userId=user_id,
+            **music_data.model_dump()
+        )
+        db.add(music)
+    db.commit()
+    db.refresh(music)
+    return music
+
+def increment_playcount_by_steam(db: Session, user_id: int) -> Models.PlayerMusic:
+    music = db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
+    if music:
+        music.playcount += 1
+        db.commit()
+        db.refresh(music)
+    return music
+
+def get_top_music(db: Session, limit: int = 10) -> List[Models.PlayerMusic]:
+    return db.query(Models.PlayerMusic)\
+             .order_by(Models.PlayerMusic.playcount.desc())\
+             .limit(limit)\
+             .all()
+
+def get_all_music(
+    db: Session, 
+    offset: int = 0, 
+    limit: int = 100,
+    search: str | None = None
+) -> List[Models.PlayerMusic]:
+    query = db.query(Models.PlayerMusic)
+    
+    if search:
+        query = query.filter(Models.PlayerMusic.soundname.ilike(f"%{search}%"))
+    
+    return query\
+        .order_by(Models.PlayerMusic.updated_at.desc())\
+        .offset(offset)\
+        .limit(limit)\
+        .all()
+
+def delete_player_music(db: Session, user_id: int) -> bool:
+    music = db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
+    if music:
+        db.delete(music)
+        db.commit()
+        return True
+    return False
+
+def get_player_volume(db: Session, user_id: int) -> Models.PlayerVolume | None:
+    return db.query(Models.PlayerVolume).filter(Models.PlayerVolume.userId == user_id).first()
+
+def set_player_volume(db: Session, user_id: int, volume_data: Schemas.PlayerVolume.Input) -> Models.PlayerVolume:
+    volume = db.query(Models.PlayerVolume).filter(Models.PlayerVolume.userId == user_id).first()
+    
+    validated_volume = max(0, min(volume_data.volume, 100))
+    
+    if volume:
+        volume.volume = validated_volume
+    else:
+        volume = Models.PlayerVolume(
+            userId=user_id,
+            volume=validated_volume
+        )
+        db.add(volume)
+    
+    db.commit()
+    db.refresh(volume)
+    return volume

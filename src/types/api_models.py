@@ -296,3 +296,29 @@ class PrivilegedUserInfo(BaseModel):
     steamId: str
     privilege: PrivilegeType
     steamInfo: PlayerSummary
+
+
+class PlayerMusic:
+    class Input(BaseModel):
+        soundname: str
+        path: str
+        url: str
+    
+    class Output(BaseModel):
+        id: int
+        soundname: str
+        path: str
+        url: str
+        playcount: int
+        updated_at: datetime.datetime
+        user: User
+
+class PlayerVolume:
+    class Input(BaseModel):
+        volume: int
+    
+    class Output(BaseModel):
+        id: int
+        volume: int
+        updated_at: datetime.datetime
+        user: User

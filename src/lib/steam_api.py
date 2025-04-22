@@ -27,21 +27,56 @@ class PlayerSummary(TypedDict):
 key = STEAM_TOKEN
 host = 'https://api.steampowered.com'
 
+
 async def GetPlayerSummaries(steam_id: str) -> PlayerSummary:
-    async with httpx.AsyncClient() as session:
-        response = await session.get(f'{host}/ISteamUser/GetPlayerSummaries/v0002/?key={key}&steamids={steam_id}', timeout=30)
-        json = response.json()
-        if not json or not json['response'] or not json['response']['players'] or len(json['response']['players']) == 0:
+    """
+    Получает информацию о профиле игрока по Steam ID
+    """
+    try:
+        async with httpx.AsyncClient() as session:
+            url = f'{host}/ISteamUser/GetPlayerSummaries/v0002/?key={key}&steamids={steam_id}'
+            
+            response = await session.get(url, timeout=30)
+            
+            if response.status_code != 200:
+                raise Exception(f"Steam API error: HTTP {response.status_code}")
+            
+            json = response.json()
+            
+            if not json or not json['response'] or not json['response']['players'] or len(json['response']['players']) == 0:
                 raise Exception("Игрок не найден")
-        return json['response']['players'][0]
+            
+            player_data = json['response']['players'][0]
+            
+            return player_data
+    except httpx.RequestError as e:
+        raise Exception(f"Ошибка соединения с Steam API: {str(e)}")
+    except Exception as e:
+        raise
+
 
 async def ResolveVanityURL(vanityURLName: str) -> str:
     """
     Возвращает SteamID по ссылке на профиль или чему-то еще.
     """
-    async with httpx.AsyncClient() as session:
-        response = await session.get(f'{host}/ISteamUser/ResolveVanityURL/v1?key={key}&vanityurl={vanityURLName}')
-        json = response.json()
-        if not json or not json['response'] or json['response']['success'] != 1:
-            raise Exception('Игрок не найден')
-        return json['response']['steamid']
+    try:
+        async with httpx.AsyncClient() as session:
+            url = f'{host}/ISteamUser/ResolveVanityURL/v1?key={key}&vanityurl={vanityURLName}'
+            
+            response = await session.get(url)
+            
+            if response.status_code != 200:
+                raise Exception(f"Steam API error: HTTP {response.status_code}")
+            
+            json = response.json()
+            
+            if not json or not json['response'] or json['response']['success'] != 1:
+                raise Exception('Игрок не найден')
+            
+            steam_id = json['response']['steamid']
+            
+            return steam_id
+    except httpx.RequestError as e:
+        raise Exception(f"Ошибка соединения с Steam API: {str(e)}")
+    except Exception as e:
+        raise
