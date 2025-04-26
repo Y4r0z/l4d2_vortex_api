@@ -11,7 +11,6 @@ from redis.asyncio import Redis
 from src.database.sourcebans import getSourcebans, SbServer, AsyncSession
 import json
 import asyncio
-import logging
 
 from celery import Celery
 celery_app = Celery('tasks', broker='redis://localhost:6379/0')
@@ -66,7 +65,6 @@ async def createPrivilegedList(user: Models.User, result: list, redis: Redis, pr
         try:
             steamInfo = await SteamAPI.GetPlayerSummaries(steamId)
         except:
-            logging.info(f'Не удалось найти игрока')
             return
         await redis.set(rkey, json.dumps(steamInfo), ex=DONATER_CACHE_TIME)
     else:

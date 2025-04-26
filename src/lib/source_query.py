@@ -46,7 +46,6 @@ def getServerInfo(server: SbServer, timeout: int = 5) -> A2SServer:
             keywords=info.keywords
         )
     except Exception as e:
-        logging.error(f"A2S info error for {server.ip}:{server.port}: {str(e)}")
         raise
 
 def getServerPlayers(server: SbServer) -> list[A2SPlayer]:
