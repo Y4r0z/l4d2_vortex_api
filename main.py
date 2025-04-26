@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy_utils import database_exists, create_database # type: ignore
+from sqlalchemy_utils import database_exists, create_database
 from src.database.models import Base, engine, Balance
 import src.database.predefined as Predefiend
 from fastapi import FastAPI
@@ -16,6 +16,7 @@ from src.api.sourcebans import sb_api
 from src.api.info import info_api
 from src.api.values import values_api
 from src.api.music import music_api
+from src.services.logger import init_app_logging
 
 def createData():
     try:
@@ -41,6 +42,8 @@ except Exception as e:
     pass
 
 app = FastAPI(lifespan=app_lifespan)
+init_app_logging(app)
+
 app.include_router(api)
 app.include_router(balance_api, prefix='/balance')
 app.include_router(discord_api, prefix='/discord')
