@@ -2,8 +2,8 @@ from fastapi import Depends, HTTPException, APIRouter
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session, Query
-from typing import Optional, List
-from sqlalchemy import select
+from typing import Optional, List, Dict, Any
+from sqlalchemy import select, and_
 import datetime
 from src.lib import steam_api as SteamAPI
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken, getRedis
@@ -11,6 +11,8 @@ from redis.asyncio import Redis
 from src.database.sourcebans import getSourcebans, SbServer, AsyncSession
 import json
 import asyncio
+import logging
+from typing import Union
 
 from celery import Celery
 celery_app = Celery('tasks', broker='redis://localhost:6379/0')
@@ -53,40 +55,45 @@ async def get_group_info(redis: Redis = Depends(getRedis)):
     
     return data
 
-
-
-
-async def createPrivilegedList(user: Models.User, result: list, redis: Redis, privIdList: list[int], isMax = True):
-    steamId = user.steamId
-    privileges = [i for i in user.privileges if i.privilegeId in privIdList]
-    if len(privileges) == 0: return
-    rkey = f'steam:{steamId}'
-    if (steamInfo:=(await redis.get(rkey))) is None:      
-        try:
-            steamInfo = await SteamAPI.GetPlayerSummaries(steamId)
-        except:
-            return
-        await redis.set(rkey, json.dumps(steamInfo), ex=DONATER_CACHE_TIME)
-    else:
-        steamInfo = json.loads(steamInfo)
-    ff = max if isMax else min
-    privilegeStatus = ff(privileges, key=lambda x: x.privilegeId)
-    privilege = privilegeStatus.privilege
-    if privilegeStatus.activeUntil < datetime.datetime.now(): return
-    result.append(
-        {
-        'steamId':  steamId,
-        'steamInfo': steamInfo,
-        'privilege': {
-            'id': privilege.id,
-            'accessLevel': privilege.accessLevel,
-            'name': privilege.name,
-            'description': privilege.description,
+async def process_privileged_user(user: Models.User, redis: Redis, priv_ids: list[int], is_max: bool = True) -> Union[Dict[str, Any], None]:
+    try:
+        steamId = user.steamId
+        current_time = datetime.datetime.now()
+        
+        privileges = [p for p in user.privileges 
+                    if p.privilegeId in priv_ids and p.activeUntil > current_time]
+        
+        if not privileges:
+            return None
+            
+        compare_func = max if is_max else min
+        privilege_status = compare_func(privileges, key=lambda x: x.privilegeId)
+        privilege = privilege_status.privilege
+        
+        rkey = f'steam:{steamId}'
+        cached_info = await redis.get(rkey)
+        
+        if cached_info is None:
+            try:
+                steam_info = await SteamAPI.GetPlayerSummaries(steamId)
+                await redis.set(rkey, json.dumps(steam_info), ex=DONATER_CACHE_TIME)
+            except Exception:
+                return None
+        else:
+            steam_info = json.loads(cached_info)
+            
+        return {
+            'steamId': steamId,
+            'steamInfo': steam_info,
+            'privilege': {
+                'id': privilege.id,
+                'accessLevel': privilege.accessLevel,
+                'name': privilege.name,
+                'description': privilege.description,
+            }
         }
-        }
-    )
-def isBoostyDatetime(d: datetime.datetime) -> bool:
-    return d.isoformat()[:19] == Models.BoostyPrivilegeUntil.isoformat()[:19]
+    except Exception:
+        return None
 
 @info_api.get('/donaters', response_model=list[Schemas.PrivilegedUserInfo])
 async def get_donaters(db: Session = Depends(get_db), redis: Redis = Depends(getRedis)):
@@ -96,16 +103,43 @@ async def get_donaters(db: Session = Depends(get_db), redis: Redis = Depends(get
     rkey = 'info:donaters'  
     if (cached := await redis.get(rkey)) is not None:
         return json.loads(cached)
-    donatersQuery = select(Models.User).filter(Models.User.privileges.any())
-    donaters = db.execute(donatersQuery).scalars().all() # Чтобы избавиться от Row[Tuple[User]] -> User
-    result = [] # type: ignore
-    privIds = [6, 7, 8]
-    tasks = [createPrivilegedList(d, result, redis, privIds) for d in donaters]
-    await asyncio.gather(*tasks)
-    result.sort(key=lambda x: x['privilege']['id'], reverse=True)
-    await redis.set(rkey, json.dumps(result), ex=DONATER_CACHE_TIME)
-    return result
     
+    try:
+        current_time = datetime.datetime.now()
+        priv_ids = [6, 7, 8]  # VIP, Premium, Legend
+        
+        donaters_query = select(Models.User).join(
+            Models.PrivilegeStatus, 
+            Models.User.id == Models.PrivilegeStatus.userId
+        ).filter(
+            Models.PrivilegeStatus.privilegeId.in_(priv_ids),
+            Models.PrivilegeStatus.activeUntil > current_time
+        ).distinct()
+        
+        donaters = db.execute(donaters_query).scalars().all()
+        result = []
+        
+        BATCH_SIZE = 10
+        for i in range(0, len(donaters), BATCH_SIZE):
+            batch = donaters[i:i+BATCH_SIZE]
+            tasks = []
+            
+            for user in batch:
+                tasks.append(process_privileged_user(user, redis, priv_ids, True))
+                
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for item in batch_results:
+                if item is not None and not isinstance(item, Exception):
+                    result.append(item)
+        
+        result.sort(key=lambda x: x['privilege']['id'], reverse=True)
+        await redis.set(rkey, json.dumps(result), ex=DONATER_CACHE_TIME)
+        return result
+    except Exception as e:
+        logging.error(f"Error in get_donaters: {e}")
+        return []
+
 @info_api.get('/team', response_model=list[Schemas.PrivilegedUserInfo])
 async def get_team(db: Session = Depends(get_db), redis: Redis = Depends(getRedis)):
     """
@@ -114,12 +148,39 @@ async def get_team(db: Session = Depends(get_db), redis: Redis = Depends(getRedi
     rkey = 'info:team'
     if (cached := await redis.get(rkey)) is not None:
         return json.loads(cached)
-    adminsQuery = select(Models.User).filter(Models.User.privileges.any())
-    admins = db.execute(adminsQuery).scalars().all() # Чтобы избавиться от Row[Tuple[User]] -> User
-    result = [] # type: ignore
-    privIds = [1, 2, 3]
-    tasks = [createPrivilegedList(d, result, redis, privIds, False) for d in admins]
-    await asyncio.gather(*tasks)
-    result.sort(key=lambda x: x['privilege']['id'], reverse=False)
-    await redis.set(rkey, json.dumps(result), ex=DONATER_CACHE_TIME)
-    return result
+    
+    try:
+        current_time = datetime.datetime.now()
+        priv_ids = [1, 2, 3]  # Owner, Admin, Moderator
+        
+        admins_query = select(Models.User).join(
+            Models.PrivilegeStatus, 
+            Models.User.id == Models.PrivilegeStatus.userId
+        ).filter(
+            Models.PrivilegeStatus.privilegeId.in_(priv_ids),
+            Models.PrivilegeStatus.activeUntil > current_time
+        ).distinct()
+        
+        admins = db.execute(admins_query).scalars().all()
+        result = []
+        
+        BATCH_SIZE = 10
+        for i in range(0, len(admins), BATCH_SIZE):
+            batch = admins[i:i+BATCH_SIZE]
+            tasks = []
+            
+            for user in batch:
+                tasks.append(process_privileged_user(user, redis, priv_ids, False))
+                
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            for item in batch_results:
+                if item is not None and not isinstance(item, Exception):
+                    result.append(item)
+        
+        result.sort(key=lambda x: x['privilege']['id'])
+        await redis.set(rkey, json.dumps(result), ex=DONATER_CACHE_TIME)
+        return result
+    except Exception as e:
+        logging.error(f"Error in get_team: {e}")
+        return []
