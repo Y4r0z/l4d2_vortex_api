@@ -1,6 +1,5 @@
 from src.settings import STEAM_TOKEN
 import httpx
-from pydantic_core import from_json
 from typing import TypedDict
 
 class PlayerSummary(TypedDict):
