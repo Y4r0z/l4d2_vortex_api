@@ -235,6 +235,8 @@ def set_player_music(db: Session, user_id: int, music_data: Schemas.PlayerMusic.
         music.path = music_data.path
         if music_data.url is not None:
             music.url = music_data.url
+        if music_data.nick is not None:
+            music.nick = music_data.nick
     else:
         music = Models.PlayerMusic(
             userId=user_id,

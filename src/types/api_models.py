@@ -303,12 +303,14 @@ class PlayerMusic:
         soundname: str
         path: str
         url: str
+        nick: str = None
     
     class Output(BaseModel):
         id: int
         soundname: str
         path: str
         url: str
+        nick: str = None
         playcount: int
         updated_at: datetime.datetime
         user: User

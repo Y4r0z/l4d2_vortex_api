@@ -307,12 +307,13 @@ class PlayerMusic(IDModel):
     __tablename__ = "player_music"
     
     soundname: Mapped[str] = column(String(255), nullable=False)
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    nick: Mapped[str] = column(String(128), nullable=True)
     path: Mapped[str] = column(String(255), nullable=False)
     url: Mapped[str] = column(String(255), nullable=True)
     playcount: Mapped[int] = column(Integer, default=0)
     updated_at: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now(), onupdate=sqlFunc.now())
     
-    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
     user: Mapped["User"] = relationship(back_populates='music')
 
 class PlayerVolume(IDModel):
