@@ -20,7 +20,7 @@ import asyncio
 
 
 
-PROFILE_CACHE_TIME = 86400
+PROFILE_CACHE_TIME = 3600
 TOP_CACHE_TIME = 3600
 
 score_api = APIRouter()
@@ -165,4 +165,40 @@ def get_player_top_rank(steam_id: str, db: Session = Depends(get_db)):
     }
         
         
-    
+@score_api.get('/game/rank', response_model=Schemas.Rank)
+async def get_game_player_rank(steam_id: str, db: Session = Depends(get_db), redis: Redis = Depends(getRedis)):
+    try:
+        cache_key = f"game_rank:{steam_id}"
+        
+        cached_result = await redis.get(cache_key)
+        if cached_result is not None:
+            cached_data = json.loads(cached_result)
+            if cached_data == "no_data":
+                raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
+            return cached_data
+        
+        user = getUser(db, steam_id)
+        
+        has_scores = db.query(Models.RoundScore).filter(Models.RoundScore.userId == user.id).limit(1).count() > 0
+        if not has_scores:
+            await redis.set(cache_key, json.dumps("no_data"), ex=120)
+            raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
+        
+        result = Crud.get_player_rank_score(db, user)
+        
+        if result is None:
+            await redis.set(cache_key, json.dumps("no_data"), ex=120)
+            raise HTTPException(status_code=404, detail=f"Player ({steam_id}) has no score data.")
+        
+        rank_data = {
+            'rank': int(result[0]),
+            'score': int(result[1])
+        }
+        
+        await redis.set(cache_key, json.dumps(rank_data), ex=300)
+        
+        return rank_data
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail=f"Error retrieving player rank data: {str(e)}")

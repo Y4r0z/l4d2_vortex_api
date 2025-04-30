@@ -1,7 +1,7 @@
 from celery import Celery
 from celery.signals import worker_ready
 import src.settings as settings
-from sqlalchemy import select
+from sqlalchemy import select, func
 from src.database.sourcebans import getSourcebansSync, SbServer
 from src.lib.rcon_api import getRconPlayers
 from src.lib.source_query import getServerInfo, getServerPlayers
@@ -35,9 +35,10 @@ redis_pool = redis.ConnectionPool.from_url(
 
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
-	sender.add_periodic_task(10.0, fetch_server_info.s(), name='fetch_servers')
-	sender.add_periodic_task(600.0, parse_group.s(), name='parse_group')
-	sender.add_periodic_task(86400.0, update_music_list.s(), name='update_music_list')
+    sender.add_periodic_task(10.0, fetch_server_info.s(), name='fetch_servers')
+    sender.add_periodic_task(600.0, parse_group.s(), name='parse_group')
+    sender.add_periodic_task(86400.0, update_music_list.s(), name='update_music_list')
+    sender.add_periodic_task(300.0, update_player_ranks.s(), name='update_player_ranks')
 
 @worker_ready.connect
 def at_start(sender, **kwargs):
@@ -264,3 +265,48 @@ def update_music_list(self):
             
         except Exception as exc:
             raise self.retry(exc=exc, countdown=60)
+
+@celery.task(
+    bind=True,
+    max_retries=3,
+    retry_backoff=True,
+    soft_time_limit=300,
+    time_limit=360,
+    name="update_player_ranks"
+)
+def update_player_ranks(self):
+    try:
+        with SessionLocal() as db:
+            subquery = select(
+                Models.RoundScore.userId,
+                Models.User.steamId,
+                func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).label('score'),
+                func.dense_rank().over(
+                    order_by=func.sum(
+                        Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks
+                    ).desc()
+                ).label('rank')
+            ).join(
+                Models.User, Models.User.id == Models.RoundScore.userId
+            ).group_by(
+                Models.RoundScore.userId, Models.User.steamId
+            ).alias('ranks')
+            
+            query = select(subquery.c.steamId, subquery.c.rank, subquery.c.score)
+            results = db.execute(query).all()
+            
+            r = redis.Redis(connection_pool=redis_pool)
+            pipeline = r.pipeline()
+            for result in results:
+                steam_id = result[0]
+                rank_data = {
+                    'rank': int(result[1]),
+                    'score': int(result[2])
+                }
+                pipeline.set(f"game_rank:{steam_id}", json.dumps(rank_data), ex=1800)
+            
+            pipeline.execute()
+            
+            return f"Updated ranks for {len(results)} players"
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=60)

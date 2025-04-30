@@ -18,7 +18,7 @@ from celery import Celery
 celery_app = Celery('tasks', broker='redis://localhost:6379/0')
 
 info_api = APIRouter()
-DONATER_CACHE_TIME = 86400
+DONATER_CACHE_TIME = 3600
 
 @info_api.get('/server/all', response_model=list[Schemas.ServerInfo])
 async def get_all_servers(redis: Redis = Depends(getRedis), sb: AsyncSession = Depends(getSourcebans)):

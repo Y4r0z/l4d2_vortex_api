@@ -174,6 +174,11 @@ class RoundScore(IDModel):
     perks: Mapped[int] = column(Integer, default=0)
     team : Mapped[int] = column(SmallInteger, default=0)
     time : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+    
+    __table_args__ = (
+        Index('idx_roundscore_userid', 'userId'),
+        Index('idx_roundscore_scores', 'agression', 'support', 'perks'),
+    )
 
 class RoundScorePermanent(IDModel):
     __tablename__ = 'roundScore_Permanent'
