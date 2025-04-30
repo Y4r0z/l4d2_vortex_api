@@ -141,7 +141,7 @@ def createRedisPool():
             encoding='utf-8', 
             decode_responses=True, 
             db=REDIS_DATABASE,
-            max_connections=20,
+            max_connections=100,
             socket_timeout=5,
             socket_connect_timeout=5
         )
