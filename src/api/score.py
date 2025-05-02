@@ -5,12 +5,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 import datetime
+import calendar
 from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getRedis, getUser
 from src.api.filter import SeasonFilter, RoundScoreFilter, Pagination
+from src.api.balance import getOrCreateBalance
 from typing import TypeVar
 from sqlalchemy import func, select
 from fastapi_filter import FilterDepends
-from redis.asyncio import Redis # type: ignore
+from redis.asyncio import Redis
 import src.lib.steam_api as SteamAPI
 from sqlalchemy.sql.expression import cast
 import src.database.crud as Crud
@@ -66,23 +68,126 @@ def add_play_session(steam_id: str, session: Schemas.PlaySession.Input, db: Sess
 def get_play_session(session_id: int, db: Session = Depends(get_db)):
     return getObj(session_id, db, Models.PlaySession)
 
+async def distribute_season_rewards(db: Session, date: datetime.date, redis: Redis):
+    try:
+        top_players_query = db.query(
+            Models.User.id, 
+            Models.User.steamId, 
+            func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).label('total_score')
+        ).join(
+            Models.RoundScore, 
+            Models.User.id == Models.RoundScore.userId
+        ).group_by(
+            Models.User.id, 
+            Models.User.steamId
+        ).order_by(
+            func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()
+        ).limit(3)
+                    
+        top_players = top_players_query.all()
+        
+        if not top_players:
+            return []
+        
+        last_day_of_month = calendar.monthrange(date.year, date.month)[1]
+        end_of_month = datetime.datetime.combine(
+            datetime.date(date.year, date.month, last_day_of_month),
+            datetime.time(22, 0),
+            tzinfo=datetime.timezone.utc
+        )
+        
+        rewards = [
+            {"position": 1, "privilege_id": 8, "coins": 100000, "privilege_name": "legend"},
+            {"position": 2, "privilege_id": 7, "coins": 50000, "privilege_name": "premium"},
+            {"position": 3, "privilege_id": 6, "coins": 25000, "privilege_name": "vip"}
+        ]
+        
+        reward_results = []
+        
+        for i, player in enumerate(top_players):
+            if i < len(rewards):
+                user_id = player[0]
+                steam_id = player[1]
+                score = player[2]
+                reward = rewards[i]
+                
+                user = getUser(db, steam_id)
+                user_privileges = Crud.get_privileges(db, user.id)
+                
+                has_privilege = getattr(user_privileges, reward["privilege_name"], False)
+                
+                if has_privilege:
+                    balance = getOrCreateBalance(db, user)
+                    balance.value += reward["coins"]
+                    
+                    transaction = Models.Transaction(
+                        balance=balance, 
+                        value=reward["coins"], 
+                        description=f'Season top-{reward["position"]} reward'
+                    )
+                    db.add(transaction)
+                    
+                    reward_results.append({
+                        "position": reward["position"],
+                        "steam_id": steam_id,
+                        "reward_type": "coins",
+                        "amount": reward["coins"]
+                    })
+                else:
+                    Crud.add_privilege(db, user_id, reward["privilege_id"], end_of_month)
+                    
+                    reward_results.append({
+                        "position": reward["position"],
+                        "steam_id": steam_id,
+                        "reward_type": "privilege",
+                        "privilege": reward["privilege_name"],
+                        "until": end_of_month.isoformat()
+                    })
+        
+        return reward_results
+    except Exception as e:
+        db.rollback()
+        raise e
+
+
 @score_api.post('/season/reset')
-def initiate_season(date: datetime.date | None = None, db: Session = Depends(get_db), token: str = Depends(requireToken)):
+async def initiate_season(date: datetime.date | None = None, db: Session = Depends(get_db), token: str = Depends(requireToken), redis: Redis = Depends(getRedis)):
     """
     Подсчитывает итоги сезона.
     Учитывает все очки что есть в БД и удаляет их, взамег создавая запись в таблице сезона
     """
     checkToken(db, token)
-    RS = Models.RoundScore
-    fsum = func.sum
-    sel = db.query(RS.userId, fsum(RS.agression), fsum(RS.support), fsum(RS.perks)).group_by(RS.userId)
-    for result in sel:
-        db.add(Models.ScoreSeason(userId=result[0], agression=result[1], support=result[2], perks=result[3], date=datetime.date.today() if date is None else date))
-    for score in db.query(Models.RoundScore):
-        db.add(Models.RoundScorePermanent(userId=score.userId, agression=score.agression, support=score.support, perks=score.perks, time=score.time, team=score.team))
-    db.query(Models.RoundScore).delete()
-    db.commit()
-    return {'message': 'done!'}
+    
+    current_date = date or datetime.date.today()
+    
+    try:
+        reward_results = await distribute_season_rewards(db, current_date, redis)
+        
+        RS = Models.RoundScore
+        fsum = func.sum
+        sel = db.query(RS.userId, fsum(RS.agression), fsum(RS.support), fsum(RS.perks)).group_by(RS.userId)
+        for result in sel:
+            db.add(Models.ScoreSeason(userId=result[0], agression=result[1], support=result[2], perks=result[3], date=current_date))
+        for score in db.query(Models.RoundScore):
+            db.add(Models.RoundScorePermanent(userId=score.userId, agression=score.agression, support=score.support, perks=score.perks, time=score.time, team=score.team))
+        db.query(Models.RoundScore).delete()
+        db.commit()
+        
+        top_keys = await redis.keys("top:*")
+        if top_keys:
+            await redis.delete(*top_keys)
+        
+        rank_keys = await redis.keys("game_rank:*")
+        if rank_keys:
+            await redis.delete(*rank_keys)
+            
+        return {
+            'message': 'Season reset and rewards distributed!',
+            'rewards': reward_results
+        }
+    except Exception as e:
+        db.rollback()
+        return {'message': 'Season reset failed', 'error': str(e)}
 
 @score_api.get('/season/search', response_model=List[Schemas.ScoreSeason.Output])
 def search_seasons(season_filter: SeasonFilter = FilterDepends(SeasonFilter), db: Session = Depends(get_db)):
