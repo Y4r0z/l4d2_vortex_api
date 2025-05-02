@@ -229,6 +229,9 @@ def get_player_music(db: Session, user_id: int) -> Models.PlayerMusic | None:
     return db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
 
 def set_player_music(db: Session, user_id: int, music_data: Schemas.PlayerMusic.Input) -> Models.PlayerMusic:
+    if not music_data.soundname or not music_data.path:
+        raise ValueError("Required fields 'soundname' and 'path' cannot be empty")
+        
     music = db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
     if music:
         music.soundname = music_data.soundname
@@ -240,7 +243,10 @@ def set_player_music(db: Session, user_id: int, music_data: Schemas.PlayerMusic.
     else:
         music = Models.PlayerMusic(
             userId=user_id,
-            **music_data.model_dump()
+            soundname=music_data.soundname,
+            path=music_data.path,
+            url=music_data.url,
+            nick=music_data.nick
         )
         db.add(music)
     db.commit()

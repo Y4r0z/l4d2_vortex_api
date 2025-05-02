@@ -1,5 +1,5 @@
 import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 
 class StatusCode(BaseModel):
     status: int = 0
@@ -300,11 +300,17 @@ class PrivilegedUserInfo(BaseModel):
 
 class PlayerMusic:
     class Input(BaseModel):
-        soundname: str
-        path: str
-        url: str
-        nick: str = None
-    
+        soundname: str = Field(..., min_length=1)
+        path: str = Field(..., min_length=1)
+        url: str | None = None
+        nick: str | None = None
+        
+        @validator('soundname', 'path')
+        def validate_non_empty(cls, v):
+            if v is not None and v.strip() == '':
+                raise ValueError("Field cannot be empty or contain only whitespace")
+            return v
+            
     class Output(BaseModel):
         id: int
         soundname: str

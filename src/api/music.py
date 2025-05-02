@@ -41,10 +41,23 @@ def update_track(
     token: str = Depends(requireToken),
     db: Session = Depends(get_db)
 ):
-    checkToken(db, token)
-    user = getOrCreateUser(db, steam_id)
-    track = Crud.set_player_music(db, user.id, track_data)
-    return track
+    try:
+        checkToken(db, token)
+        user = getOrCreateUser(db, steam_id)
+        
+        if not track_data.soundname or track_data.soundname.strip() == "":
+            raise HTTPException(status_code=400, detail="Field 'soundname' cannot be empty")
+            
+        if not track_data.path or track_data.path.strip() == "":
+            raise HTTPException(status_code=400, detail="Field 'path' cannot be empty")
+            
+        track = Crud.set_player_music(db, user.id, track_data)
+        return track
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error setting player music: {str(e)}")
 
 @music_api.get('/list', response_model=List[Schemas.PlayerMusic.Output])
 def get_all_tracks(
