@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, APIRouter
 from src.database import models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, select, text, Integer
 from typing import List
 import datetime
 import calendar
@@ -10,13 +10,11 @@ from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, get
 from src.api.filter import SeasonFilter, RoundScoreFilter, Pagination
 from src.api.balance import getOrCreateBalance
 from typing import TypeVar
-from sqlalchemy import func, select
 from fastapi_filter import FilterDepends
 from redis.asyncio import Redis
 import src.lib.steam_api as SteamAPI
 from sqlalchemy.sql.expression import cast
 import src.database.crud as Crud
-from sqlalchemy import Integer
 import json
 import asyncio
 
@@ -67,6 +65,84 @@ def add_play_session(steam_id: str, session: Schemas.PlaySession.Input, db: Sess
 @score_api.get('/session', response_model=Schemas.PlaySession.Output)
 def get_play_session(session_id: int, db: Session = Depends(get_db)):
     return getObj(session_id, db, Models.PlaySession)
+
+@score_api.get('/session/top', response_model=List[Schemas.TopPlaytime])
+async def get_top_playtime(
+    limit: int = 10,
+    db: Session = Depends(get_db),
+    redis: Redis = Depends(getRedis)
+):
+    if limit < 1:
+        raise HTTPException(status_code=400, detail="Limit must be at least 1")
+    if limit > 100:
+        raise HTTPException(status_code=400, detail="Limit must be at most 100")
+    
+    cache_key = f"playtime_top:{limit}"
+    cached_result = await redis.get(cache_key)
+    
+    if cached_result:
+        return json.loads(cached_result)
+    
+    subquery = db.query(
+        Models.PlaySession.userId,
+        func.sum(
+            func.timestampdiff(text('SECOND'), Models.PlaySession.timeFrom, Models.PlaySession.timeTo)
+        ).label('total_seconds')
+    ).filter(
+        Models.PlaySession.timeTo.isnot(None)
+    ).group_by(Models.PlaySession.userId).subquery()
+    
+    query = db.query(
+        func.dense_rank().over(
+            order_by=subquery.c.total_seconds.desc()
+        ).label('rank'),
+        Models.User.steamId,
+        subquery.c.total_seconds
+    ).join(
+        Models.User, Models.User.id == subquery.c.userId
+    ).filter(
+        subquery.c.total_seconds.isnot(None)
+    ).order_by(
+        subquery.c.total_seconds.desc()
+    ).limit(limit)
+    
+    results = query.all()
+    
+    response = [
+        {
+            'rank': int(row[0]),
+            'steam_id': row[1],
+            'total_seconds': int(row[2]) if row[2] else 0,
+            'total_hours': round(float(row[2]) / 3600, 2) if row[2] else 0.0
+        }
+        for row in results
+    ]
+    
+    await redis.set(cache_key, json.dumps(response), ex=300)
+    
+    return response
+
+@score_api.get('/session/playtime', response_model=Schemas.PlayTime)
+def get_total_playtime(steam_id: str, db: Session = Depends(get_db)):
+    user = getUser(db, steam_id)
+    
+    sessions = db.query(Models.PlaySession).filter(
+        Models.PlaySession.userId == user.id
+    ).all()
+    
+    total_seconds = 0
+    for session in sessions:
+        if session.timeTo and session.timeFrom:
+            duration = session.timeTo - session.timeFrom
+            total_seconds += int(duration.total_seconds())
+    
+    total_hours = round(total_seconds / 3600, 2)
+    
+    return {
+        'steam_id': steam_id,
+        'total_seconds': total_seconds,
+        'total_hours': total_hours
+    }
 
 async def distribute_season_rewards(db: Session, date: datetime.date, redis: Redis):
     try:
