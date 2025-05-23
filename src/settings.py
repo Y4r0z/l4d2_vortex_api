@@ -10,6 +10,7 @@ SOURCEBANS_CONNECT_STRING: str = environ.get('SOURCEBANS_CONNECT_STRING') #type:
 # API Keys
 STEAM_TOKEN: str = environ.get('STEAM_TOKEN') #type: ignore
 SERVER_TOKEN: str = environ.get('SERVER_TOKEN') #type: ignore
+SECRET_KEY: str = environ.get('SECRET_KEY') #type: ignore
 
 # Redis settings
 REDIS_CONNECT_STRING: str = environ.get('REDIS_CONNECT_STRING') #type: ignore
@@ -32,6 +33,7 @@ CELERY_RESULT_EXTENDED = True
 assert SQL_CONNECT_STRING is not None, 'SQL_CONNECT_STRING not set in environment variables'
 assert STEAM_TOKEN is not None, 'STEAM_TOKEN not set in environment variables'
 assert SERVER_TOKEN is not None, 'SERVER_TOKEN not set in environment variables'
+assert SECRET_KEY is not None, 'SECRET_KEY not set in environment variables'
 assert REDIS_CONNECT_STRING is not None, 'REDIS_CONNECT_STRING not set in environment variables'
 assert REDIS_DATABASE is not None, 'REDIS_DATABASE not set in environment variables'
 assert SOURCEBANS_CONNECT_STRING is not None, 'SOURCEBANS_CONNECT_STRING not set in environment variables'

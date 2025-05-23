@@ -37,6 +37,42 @@ class User(IDModel):
     volume: Mapped["PlayerVolume"] = relationship(back_populates='user', uselist=False)
 
 
+
+class ServerStatus(IDModel):
+    __tablename__ = "server_status"
+    name: Mapped[str] = column(String(128))
+    ip: Mapped[str] = column(String(64))
+    port: Mapped[int] = column(Integer)
+    map: Mapped[str] = column(String(64))
+    mode: Mapped[str] = column(String(32), default="default")
+    max_slots: Mapped[int] = column(Integer, default=8)
+    current_players: Mapped[int] = column(Integer, default=0)
+    last_update: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now(), onupdate=sqlFunc.now())
+    players: Mapped[List["ServerPlayer"]] = relationship(back_populates='server', cascade='all, delete-orphan')
+    
+    __table_args__ = (
+        Index('idx_server_ip_port', 'ip', 'port', unique=True),
+    )
+
+class ServerPlayer(IDModel):
+    __tablename__ = "server_player"
+    server_id: Mapped[int] = column(ForeignKey('server_status.id', ondelete='CASCADE'))
+    server: Mapped["ServerStatus"] = relationship(back_populates='players')
+    user_id: Mapped[int] = column(Integer)
+    steam_id: Mapped[str] = column(String(64))
+    name: Mapped[str] = column(String(128))
+    ip: Mapped[str] = column(String(64))
+    connection_time: Mapped[float] = column(Float, default=0)
+    last_update: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now(), onupdate=sqlFunc.now())
+    
+    __table_args__ = (
+        Index('idx_server_player_steamid', 'steam_id'),
+        Index('idx_server_player_server', 'server_id'),
+        Index('idx_server_player_unique', 'server_id', 'steam_id', unique=True),
+    )
+
+
+
 class PerkSet(IDModel):
     __tablename__ = "perkSet"
     survivorPerk1 : Mapped[str] = column(String(64))
@@ -206,6 +242,10 @@ class PlaySession(IDModel):
     user : Mapped["User"] = relationship('User', foreign_keys='PlaySession.userId')
     timeFrom : Mapped[datetime.datetime] = column(DateTime(timezone=True))
     timeTo : Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
+    
+    __table_args__ = (
+        Index('idx_playsession_userid', 'userId'),
+    )
 
 class MoneyDrop(IDModel):
     __tablename__ = 'moneyDrop'
@@ -292,21 +332,8 @@ class UserInventory(IDModel):
     item: Mapped["L4D2Item"] = relationship('L4D2Item', foreign_keys='UserInventory.itemId')
     activeUntil: Mapped[datetime.datetime] = column(DateTime(timezone=True))
 
-
-
-class ServerStats(IDModel):
-    __tablename__ ='serverStats'
-    time: Mapped[datetime.datetime] = column(DateTime(timezone=True), server_default=sqlFunc.now())
-    players: Mapped[int] = column(Integer)
-    maxPlayers: Mapped[int] = column(Integer)
-    map: Mapped[str] = column(String(32))
-    name: Mapped[str] = column(String(64))
-    ping: Mapped[int] = column(Integer)
-    ip: Mapped[str] = column(String(32))
-    port: Mapped[int] = column(Integer)
-    sid: Mapped[int] = column(Integer)
     
-    
+
     
 class PlayerMusic(IDModel):
     __tablename__ = "player_music"
@@ -329,3 +356,123 @@ class PlayerVolume(IDModel):
     
     userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
     user: Mapped["User"] = relationship(back_populates='volume')
+
+class PlayerSound(IDModel):
+    __tablename__ = "player_sounds"
+    
+    soundname: Mapped[str] = column(String(255), nullable=False)
+    path: Mapped[str] = column(String(255), nullable=False)
+    cooldown: Mapped[float] = column(Float, nullable=False)
+    playcount: Mapped[int] = column(Integer, default=0)
+
+class StPlayerBase(IDModel):
+    __tablename__ = 'st_player_base'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='StPlayerBase.userId')
+    last_nickname: Mapped[str] = column(String(128), nullable=True)
+    last_online: Mapped[str] = column(String(32), nullable=True)
+    last_ip: Mapped[str] = column(String(64), nullable=True)
+    last_country: Mapped[str] = column(String(64), nullable=True)
+    last_city: Mapped[str] = column(String(64), nullable=True)
+    last_region: Mapped[str] = column(String(64), nullable=True)
+    
+    __table_args__ = (
+        Index('idx_st_player_base_userid', 'userId', unique=True),
+    )
+
+class StPlayerHits(IDModel):
+    __tablename__ = 'st_player_hits'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='StPlayerHits.userId')
+    NULL_HITBOX: Mapped[int] = column(Integer, default=0)
+    HEAD: Mapped[int] = column(Integer, default=0)
+    CHEST: Mapped[int] = column(Integer, default=0)
+    STOMACH: Mapped[int] = column(Integer, default=0)
+    LEFT_ARM: Mapped[int] = column(Integer, default=0)
+    RIGHT_ARM: Mapped[int] = column(Integer, default=0)
+    LEFT_LEG: Mapped[int] = column(Integer, default=0)
+    RIGHT_LEG: Mapped[int] = column(Integer, default=0)
+    
+    __table_args__ = (
+        Index('idx_st_player_hits_userid', 'userId', unique=True),
+    )
+
+class StPlayerKills(IDModel):
+    __tablename__ = 'st_player_kills'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='StPlayerKills.userId')
+    survivor_killed: Mapped[int] = column(Integer, default=0)
+    infected_killed: Mapped[int] = column(Integer, default=0)
+    smoker_killed: Mapped[int] = column(Integer, default=0)
+    boomer_killed: Mapped[int] = column(Integer, default=0)
+    hunter_killed: Mapped[int] = column(Integer, default=0)
+    spitter_killed: Mapped[int] = column(Integer, default=0)
+    jockey_killed: Mapped[int] = column(Integer, default=0)
+    charger_killed: Mapped[int] = column(Integer, default=0)
+    witch_killed: Mapped[int] = column(Integer, default=0)
+    tank_killed: Mapped[int] = column(Integer, default=0)
+    
+    __table_args__ = (
+        Index('idx_st_player_kills_userid', 'userId', unique=True),
+    )
+
+class StPlayerShots(IDModel):
+    __tablename__ = 'st_player_shots'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='StPlayerShots.userId')
+    player_death: Mapped[int] = column(Integer, default=0)
+    player_fire: Mapped[int] = column(Integer, default=0)
+    player_hits: Mapped[int] = column(Integer, default=0)
+    player_heads: Mapped[int] = column(Integer, default=0)
+    player_damage: Mapped[int] = column(Integer, default=0)
+    player_hurt: Mapped[int] = column(Integer, default=0)
+    
+    __table_args__ = (
+        Index('idx_st_player_shots_userid', 'userId', unique=True),
+    )
+
+class StPlayerWeapon(IDModel):
+    __tablename__ = 'st_player_weapon'
+    userId: Mapped[int] = column(ForeignKey('user.id', ondelete='cascade'))
+    user: Mapped["User"] = relationship('User', foreign_keys='StPlayerWeapon.userId')
+    pistol: Mapped[int] = column(Integer, default=0)
+    pistol_magnum: Mapped[int] = column(Integer, default=0)
+    autoshotgun: Mapped[int] = column(Integer, default=0)
+    shotgun_chrome: Mapped[int] = column(Integer, default=0)
+    pumpshotgun: Mapped[int] = column(Integer, default=0)
+    shotgun_spas: Mapped[int] = column(Integer, default=0)
+    smg: Mapped[int] = column(Integer, default=0)
+    smg_mp5: Mapped[int] = column(Integer, default=0)
+    smg_silenced: Mapped[int] = column(Integer, default=0)
+    rifle_ak47: Mapped[int] = column(Integer, default=0)
+    rifle_sg552: Mapped[int] = column(Integer, default=0)
+    rifle: Mapped[int] = column(Integer, default=0)
+    rifle_m60: Mapped[int] = column(Integer, default=0)
+    rifle_desert: Mapped[int] = column(Integer, default=0)
+    hunting_rifle: Mapped[int] = column(Integer, default=0)
+    sniper_military: Mapped[int] = column(Integer, default=0)
+    sniper_awp: Mapped[int] = column(Integer, default=0)
+    sniper_scout: Mapped[int] = column(Integer, default=0)
+    weapon_grenade_launcher: Mapped[int] = column(Integer, default=0)
+    molotov: Mapped[int] = column(Integer, default=0)
+    pipe_bomb: Mapped[int] = column(Integer, default=0)
+    vomitjar: Mapped[int] = column(Integer, default=0)
+    melee: Mapped[int] = column(Integer, default=0)
+    baseball_bat: Mapped[int] = column(Integer, default=0)
+    cricket_bat: Mapped[int] = column(Integer, default=0)
+    crowbar: Mapped[int] = column(Integer, default=0)
+    electric_guitar: Mapped[int] = column(Integer, default=0)
+    fireaxe: Mapped[int] = column(Integer, default=0)
+    frying_pan: Mapped[int] = column(Integer, default=0)
+    katana: Mapped[int] = column(Integer, default=0)
+    knife: Mapped[int] = column(Integer, default=0)
+    machete: Mapped[int] = column(Integer, default=0)
+    tonfa: Mapped[int] = column(Integer, default=0)
+    pain_pills: Mapped[int] = column(Integer, default=0)
+    adrenaline: Mapped[int] = column(Integer, default=0)
+    defibrillator: Mapped[int] = column(Integer, default=0)
+    first_aid_kit: Mapped[int] = column(Integer, default=0)
+    
+    __table_args__ = (
+        Index('idx_st_player_weapon_userid', 'userId', unique=True),
+    )

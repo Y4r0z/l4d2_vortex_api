@@ -57,6 +57,13 @@ def initialize_loggers():
 	
 	return api_logger, error_logger, slow_logger
 
+def should_skip_logging(method: str, path: str, status_code: int) -> bool:
+	if method == "POST" and path == "/servers/update" and status_code == 200:
+		return True
+	if method == "GET" and path == "/servers" and status_code == 200:
+		return True
+	return False
+
 class LoggingMiddleware(BaseHTTPMiddleware):
 	async def dispatch(
 		self, request: Request, call_next: RequestResponseEndpoint
@@ -81,12 +88,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 			
 			status_code = response.status_code
 			
-			log_msg = f"{method} {full_url} | Status: {status_code} | Time: {process_time_ms}ms"
-			
-			api_logger.info(log_msg)
-			
-			if process_time_ms > 300:
-				slow_logger.info(f"{method} {full_url} | Status: {status_code} | Time: {process_time_ms}ms")
+			if not should_skip_logging(method, request.url.path, status_code):
+				log_msg = f"{method} {full_url} | Status: {status_code} | Time: {process_time_ms}ms"
+				api_logger.info(log_msg)
+				
+				if process_time_ms > 300:
+					slow_logger.info(f"{method} {full_url} | Status: {status_code} | Time: {process_time_ms}ms")
 				
 			return response
 			

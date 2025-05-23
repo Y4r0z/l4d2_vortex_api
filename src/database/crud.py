@@ -312,3 +312,164 @@ def set_player_volume(db: Session, user_id: int, volume_data: Schemas.PlayerVolu
     db.commit()
     db.refresh(volume)
     return volume
+
+
+def get_player_sounds(db: Session) -> List[Models.PlayerSound]:
+    return db.query(Models.PlayerSound).all()
+
+def add_player_sound(db: Session, sound_data: Schemas.PlayerSound.Input) -> Models.PlayerSound:
+    if not sound_data.soundname or not sound_data.path:
+        raise ValueError("Required fields 'soundname' and 'path' cannot be empty")
+        
+    sound = Models.PlayerSound(
+        soundname=sound_data.soundname,
+        path=sound_data.path,
+        cooldown=sound_data.cooldown
+    )
+    db.add(sound)
+    db.commit()
+    db.refresh(sound)
+    return sound
+
+def delete_player_sound(db: Session, sound_id: int) -> bool:
+    sound = db.query(Models.PlayerSound).filter(Models.PlayerSound.id == sound_id).first()
+    if sound:
+        db.delete(sound)
+        db.commit()
+        return True
+    return False
+
+def increment_sound_playcount(db: Session, sound_id: int) -> Models.PlayerSound:
+    sound = db.query(Models.PlayerSound).filter(Models.PlayerSound.id == sound_id).first()
+    if sound:
+        sound.playcount += 1
+        db.commit()
+        db.refresh(sound)
+    return sound
+
+def get_sound_by_id(db: Session, sound_id: int) -> Models.PlayerSound | None:
+    return db.query(Models.PlayerSound).filter(Models.PlayerSound.id == sound_id).first()
+
+
+def get_player_base(db: Session, user_id: int) -> Models.StPlayerBase | None:
+    return db.query(Models.StPlayerBase).filter(Models.StPlayerBase.userId == user_id).first()
+
+def replace_player_base(db: Session, user_id: int, base_data: Schemas.StPlayerBase.Input) -> Models.StPlayerBase:
+    player_base = get_player_base(db, user_id)
+    if player_base:
+        for field, value in base_data.model_dump().items():
+            if value is not None:
+                setattr(player_base, field, value)
+        db.commit()
+        db.refresh(player_base)
+        return player_base
+    else:
+        player_base = Models.StPlayerBase(
+            userId=user_id,
+            **base_data.model_dump()
+        )
+        db.add(player_base)
+        db.commit()
+        db.refresh(player_base)
+        return player_base
+
+def get_player_hits(db: Session, user_id: int) -> Models.StPlayerHits | None:
+    return db.query(Models.StPlayerHits).filter(Models.StPlayerHits.userId == user_id).first()
+
+def add_player_hits(db: Session, user_id: int, hits_data: Schemas.StPlayerHits.Input) -> Models.StPlayerHits:
+    player_hits = get_player_hits(db, user_id)
+    if player_hits:
+        for field, value in hits_data.model_dump().items():
+            current_value = getattr(player_hits, field)
+            setattr(player_hits, field, current_value + value)
+        db.commit()
+        db.refresh(player_hits)
+        return player_hits
+    else:
+        player_hits = Models.StPlayerHits(
+            userId=user_id,
+            **hits_data.model_dump()
+        )
+        db.add(player_hits)
+        db.commit()
+        db.refresh(player_hits)
+        return player_hits
+
+def get_player_kills(db: Session, user_id: int) -> Models.StPlayerKills | None:
+    return db.query(Models.StPlayerKills).filter(Models.StPlayerKills.userId == user_id).first()
+
+def add_player_kills(db: Session, user_id: int, kills_data: Schemas.StPlayerKills.Input) -> Models.StPlayerKills:
+    player_kills = get_player_kills(db, user_id)
+    if player_kills:
+        for field, value in kills_data.model_dump().items():
+            current_value = getattr(player_kills, field)
+            setattr(player_kills, field, current_value + value)
+        db.commit()
+        db.refresh(player_kills)
+        return player_kills
+    else:
+        player_kills = Models.StPlayerKills(
+            userId=user_id,
+            **kills_data.model_dump()
+        )
+        db.add(player_kills)
+        db.commit()
+        db.refresh(player_kills)
+        return player_kills
+
+def get_player_shots(db: Session, user_id: int) -> Models.StPlayerShots | None:
+    return db.query(Models.StPlayerShots).filter(Models.StPlayerShots.userId == user_id).first()
+
+def add_player_shots(db: Session, user_id: int, shots_data: Schemas.StPlayerShots.Input) -> Models.StPlayerShots:
+    player_shots = get_player_shots(db, user_id)
+    if player_shots:
+        for field, value in shots_data.model_dump().items():
+            current_value = getattr(player_shots, field)
+            setattr(player_shots, field, current_value + value)
+        db.commit()
+        db.refresh(player_shots)
+        return player_shots
+    else:
+        player_shots = Models.StPlayerShots(
+            userId=user_id,
+            **shots_data.model_dump()
+        )
+        db.add(player_shots)
+        db.commit()
+        db.refresh(player_shots)
+        return player_shots
+
+def get_player_weapon(db: Session, user_id: int) -> Models.StPlayerWeapon | None:
+    return db.query(Models.StPlayerWeapon).filter(Models.StPlayerWeapon.userId == user_id).first()
+
+def add_player_weapon(db: Session, user_id: int, weapon_data: Schemas.StPlayerWeapon.Input) -> Models.StPlayerWeapon:
+    player_weapon = get_player_weapon(db, user_id)
+    if player_weapon:
+        for field, value in weapon_data.model_dump().items():
+            current_value = getattr(player_weapon, field)
+            setattr(player_weapon, field, current_value + value)
+        db.commit()
+        db.refresh(player_weapon)
+        return player_weapon
+    else:
+        player_weapon = Models.StPlayerWeapon(
+            userId=user_id,
+            **weapon_data.model_dump()
+        )
+        db.add(player_weapon)
+        db.commit()
+        db.refresh(player_weapon)
+        return player_weapon
+    
+def get_user_by_id(db: Session, user_id: int) -> Models.User | None:
+    return db.query(Models.User).filter(Models.User.id == user_id).first()
+
+def get_user_by_steamid64(db: Session, steamid64: str) -> Models.User | None:
+    return db.query(Models.User).filter(Models.User.steamId == steamid64).first()
+
+def create_user_with_steamid64(db: Session, steamid64: str) -> Models.User:
+    user = Models.User(steamId=steamid64)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user

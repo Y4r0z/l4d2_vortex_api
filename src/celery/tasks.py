@@ -1,7 +1,7 @@
 from celery import Celery
 from celery.signals import worker_ready
 import src.settings as settings
-from sqlalchemy import select, func
+from sqlalchemy import select, func, Session
 from src.database.sourcebans import getSourcebansSync, SbServer
 from src.lib.rcon_api import getRconPlayers
 from src.lib.source_query import getServerInfo, getServerPlayers
@@ -13,6 +13,7 @@ import httpx
 import time
 from src.database.models import SessionLocal
 from src.database import models as Models
+from src.database import crud as Crud
 
 celery = Celery(__name__)
 celery.conf.broker_url = settings.CELERY_BROKER_URL
@@ -45,12 +46,10 @@ def at_start(sender, **kwargs):
 	with sender.app.connection() as conn:
 		sender.app.send_task('src.celery.tasks.parse_group', connection=conn)
 
-def process_single_server(server: SbServer):
-	"""
-	Обработка информации для одного сервера и сохранение только в Redis
-	"""
+def process_single_server(server: SbServer, db_session: Session):
 	players = []
 	server_id = f"{server.ip}:{server.port}"
+	online_user_ids = []
 	
 	try:
 		serverInfo = getServerInfo(server, timeout=5)
@@ -78,6 +77,11 @@ def process_single_server(server: SbServer):
 				'time': tt,
 				'steamId': p.steam64id
 			})
+			
+			user = Crud.get_user(db_session, p.steam64id)
+			if user:
+				online_user_ids.append(user.id)
+				Crud.set_user_online(db_session, user.id, server.sid)
 	except Exception as e:
 		pass
 
@@ -100,6 +104,8 @@ def process_single_server(server: SbServer):
 			r.set(f'server_info:{server.sid}', json.dumps(finalServer), ex=86400)
 	except redis.RedisError as e:
 		pass
+	
+	return online_user_ids
 
 @celery.task(
 	bind=True,
@@ -110,9 +116,6 @@ def process_single_server(server: SbServer):
 	name="fetch_server_info"
 )
 def fetch_server_info(self):
-	"""
-	Задача получения информации со всех серверов и сохранения в Redis
-	"""
 	sb = None
 	
 	try:
@@ -121,11 +124,18 @@ def fetch_server_info(self):
 		serversQuery = select(SbServer).where(SbServer.enabled == 1)
 		servers = [s._tuple()[0] for s in sb.execute(serversQuery).all()]
 		
-		for server in servers:
-			try:
-				process_single_server(server)
-			except Exception as e:
-				continue
+		with SessionLocal() as db:
+			all_online_user_ids = []
+			
+			for server in servers:
+				try:
+					online_ids = process_single_server(server, db)
+					if online_ids:
+						all_online_user_ids.extend(online_ids)
+				except Exception as e:
+					continue
+			
+			Crud.bulk_update_users_offline(db, all_online_user_ids)
 		
 	except Exception as exc:
 		raise self.retry(exc=exc, countdown=60)
@@ -142,9 +152,6 @@ def fetch_server_info(self):
 	name="parse_group"
 )
 def parse_group(self):
-	"""
-	Задача получения информации о группе Steam и сохранения только в Redis
-	"""
 	try:
 		group_href = 'https://steamcommunity.com/groups/vortexl4d4'
 		href = f'{group_href}/memberslistxml/?xml=1'
@@ -190,11 +197,6 @@ def parse_group(self):
     name="update_music_list"
 )
 def update_music_list(self):
-    """
-    Задача для управления музыкальной библиотекой:
-    1. Обновляет никнеймы пользователей в таблице player_music
-    2. Удаляет треки пользователей без привилегий Legend, Moderator, Admin или Owner
-    """
     with SessionLocal() as db:
         try:
             music_entries = db.query(Models.PlayerMusic).join(Models.User).all()
@@ -210,7 +212,7 @@ def update_music_list(self):
                 privileges = db.query(Models.PrivilegeStatus).filter(
                     Models.PrivilegeStatus.userId == entry.userId,
                     Models.PrivilegeStatus.activeUntil > current_time,
-                    Models.PrivilegeStatus.privilegeId.in_([1, 2, 3, 8])  # owner, admin, moderator, legend
+                    Models.PrivilegeStatus.privilegeId.in_([1, 2, 3, 8])
                 ).all()
                 
                 if privileges:

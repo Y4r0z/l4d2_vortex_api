@@ -1,5 +1,6 @@
 import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Dict, Any, Optional
 
 class StatusCode(BaseModel):
     status: int = 0
@@ -7,6 +8,41 @@ class StatusCode(BaseModel):
 class User(BaseModel):
     id : int
     steamId : str
+
+class ServerPlayer(BaseModel):
+    userId: int
+    name: str
+    ip: str
+    time: float
+    steamId: str
+
+class ServerStatus(BaseModel):
+    id: int
+    name: str
+    map: str
+    players: int
+    maxPlayers: int
+    ip: str
+    port: int
+    mode: str
+    players: List[ServerPlayer] = []
+
+class ServerUpdateRequest(BaseModel):
+    name: str
+    map: str
+    mode: str
+    max_slots: int
+    ip: str
+    port: int
+    players: List[Dict[str, Any]]
+
+
+class QueueJoinRequest(BaseModel):
+    clientId: str
+    preferences: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
+class QueueLeaveRequest(BaseModel):
+    clientId: str
 
 class PerkSet(BaseModel):
     survivorPerk1: str
@@ -121,6 +157,16 @@ class PlaySession:
         timeFrom: datetime.datetime
         timeTo: datetime.datetime
 
+class PlayTime(BaseModel):
+    steam_id: str
+    total_seconds: int
+    total_hours: float
+
+class TopPlaytime(BaseModel):
+    rank: int
+    steam_id: str
+    total_seconds: int
+    total_hours: float
 
 class MoneyDrop(BaseModel):
     user: User
@@ -305,7 +351,8 @@ class PlayerMusic:
         url: str | None = None
         nick: str | None = None
         
-        @validator('soundname', 'path')
+        @field_validator('soundname', 'path')
+        @classmethod
         def validate_non_empty(cls, v):
             if v is not None and v.strip() == '':
                 raise ValueError("Field cannot be empty or contain only whitespace")
@@ -330,3 +377,210 @@ class PlayerVolume:
         volume: int
         updated_at: datetime.datetime
         user: User
+
+class PlayerSound:
+    class Input(BaseModel):
+        soundname: str = Field(..., min_length=1)
+        path: str = Field(..., min_length=1)
+        cooldown: float
+        
+        @field_validator('soundname', 'path')
+        @classmethod
+        def validate_non_empty(cls, v):
+            if v is not None and v.strip() == '':
+                raise ValueError("Field cannot be empty or contain only whitespace")
+            return v
+    
+    class Output(BaseModel):
+        id: int
+        soundname: str
+        path: str
+        cooldown: float
+        playcount: int
+
+class StPlayerBase:
+    class Input(BaseModel):
+        last_nickname: Optional[str] = None
+        last_online: Optional[str] = None
+        last_ip: Optional[str] = None
+        last_country: Optional[str] = None
+        last_city: Optional[str] = None
+        last_region: Optional[str] = None
+    
+    class Output(BaseModel):
+        id: int
+        user: User
+        last_nickname: Optional[str] = None
+        last_online: Optional[str] = None
+        last_ip: Optional[str] = None
+        last_country: Optional[str] = None
+        last_city: Optional[str] = None
+        last_region: Optional[str] = None
+
+class StPlayerHits:
+    class Input(BaseModel):
+        NULL_HITBOX: int = 0
+        HEAD: int = 0
+        CHEST: int = 0
+        STOMACH: int = 0
+        LEFT_ARM: int = 0
+        RIGHT_ARM: int = 0
+        LEFT_LEG: int = 0
+        RIGHT_LEG: int = 0
+    
+    class Output(BaseModel):
+        id: int
+        user: User
+        NULL_HITBOX: int = 0
+        HEAD: int = 0
+        CHEST: int = 0
+        STOMACH: int = 0
+        LEFT_ARM: int = 0
+        RIGHT_ARM: int = 0
+        LEFT_LEG: int = 0
+        RIGHT_LEG: int = 0
+
+class StPlayerKills:
+    class Input(BaseModel):
+        survivor_killed: int = 0
+        infected_killed: int = 0
+        smoker_killed: int = 0
+        boomer_killed: int = 0
+        hunter_killed: int = 0
+        spitter_killed: int = 0
+        jockey_killed: int = 0
+        charger_killed: int = 0
+        witch_killed: int = 0
+        tank_killed: int = 0
+    
+    class Output(BaseModel):
+        id: int
+        user: User
+        survivor_killed: int = 0
+        infected_killed: int = 0
+        smoker_killed: int = 0
+        boomer_killed: int = 0
+        hunter_killed: int = 0
+        spitter_killed: int = 0
+        jockey_killed: int = 0
+        charger_killed: int = 0
+        witch_killed: int = 0
+        tank_killed: int = 0
+
+class StPlayerShots:
+    class Input(BaseModel):
+        player_death: int = 0
+        player_fire: int = 0
+        player_hits: int = 0
+        player_heads: int = 0
+        player_damage: int = 0
+        player_hurt: int = 0
+    
+    class Output(BaseModel):
+        id: int
+        user: User
+        player_death: int = 0
+        player_fire: int = 0
+        player_hits: int = 0
+        player_heads: int = 0
+        player_damage: int = 0
+        player_hurt: int = 0
+
+class StPlayerWeapon:
+    class Input(BaseModel):
+        pistol: int = 0
+        pistol_magnum: int = 0
+        autoshotgun: int = 0
+        shotgun_chrome: int = 0
+        pumpshotgun: int = 0
+        shotgun_spas: int = 0
+        smg: int = 0
+        smg_mp5: int = 0
+        smg_silenced: int = 0
+        rifle_ak47: int = 0
+        rifle_sg552: int = 0
+        rifle: int = 0
+        rifle_m60: int = 0
+        rifle_desert: int = 0
+        hunting_rifle: int = 0
+        sniper_military: int = 0
+        sniper_awp: int = 0
+        sniper_scout: int = 0
+        weapon_grenade_launcher: int = 0
+        molotov: int = 0
+        pipe_bomb: int = 0
+        vomitjar: int = 0
+        melee: int = 0
+        baseball_bat: int = 0
+        cricket_bat: int = 0
+        crowbar: int = 0
+        electric_guitar: int = 0
+        fireaxe: int = 0
+        frying_pan: int = 0
+        katana: int = 0
+        knife: int = 0
+        machete: int = 0
+        tonfa: int = 0
+        pain_pills: int = 0
+        adrenaline: int = 0
+        defibrillator: int = 0
+        first_aid_kit: int = 0
+    
+    class Output(BaseModel):
+        id: int
+        user: User
+        pistol: int = 0
+        pistol_magnum: int = 0
+        autoshotgun: int = 0
+        shotgun_chrome: int = 0
+        pumpshotgun: int = 0
+        shotgun_spas: int = 0
+        smg: int = 0
+        smg_mp5: int = 0
+        smg_silenced: int = 0
+        rifle_ak47: int = 0
+        rifle_sg552: int = 0
+        rifle: int = 0
+        rifle_m60: int = 0
+        rifle_desert: int = 0
+        hunting_rifle: int = 0
+        sniper_military: int = 0
+        sniper_awp: int = 0
+        sniper_scout: int = 0
+        weapon_grenade_launcher: int = 0
+        molotov: int = 0
+        pipe_bomb: int = 0
+        vomitjar: int = 0
+        melee: int = 0
+        baseball_bat: int = 0
+        cricket_bat: int = 0
+        crowbar: int = 0
+        electric_guitar: int = 0
+        fireaxe: int = 0
+        frying_pan: int = 0
+        katana: int = 0
+        knife: int = 0
+        machete: int = 0
+        tonfa: int = 0
+        pain_pills: int = 0
+        adrenaline: int = 0
+        defibrillator: int = 0
+        first_aid_kit: int = 0
+
+class SteamVerifyRequest(BaseModel):
+    steamid: str
+    personaname: str
+    avatar: str
+    avatarfull: Optional[str] = None
+    profileurl: str
+
+class SteamVerifyResponse(BaseModel):
+    access_token: str
+    user: User
+    steamInfo: PlayerSummary
+    privileges: PrivilegesList
+
+class AuthMeResponse(BaseModel):
+    user: User
+    steamInfo: PlayerSummary
+    privileges: PrivilegesList

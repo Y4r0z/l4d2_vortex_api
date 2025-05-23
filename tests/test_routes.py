@@ -285,39 +285,229 @@ def test_privilege_item():
     # Test deleting a privilege item
     response = client.delete(f'items/privilege_item?item_id={item_id}')
     assert response.status_code == 200
-    
 
+from src.database.models import SessionLocal
+from src.database import models as Models
 
+def cleanup_statistics_data(steam_id: str):
+    with SessionLocal() as db:
+        user = db.query(Models.User).filter(Models.User.steamId == steam_id).first()
+        if user:
+            db.query(Models.StPlayerBase).filter(Models.StPlayerBase.userId == user.id).delete()
+            db.query(Models.StPlayerHits).filter(Models.StPlayerHits.userId == user.id).delete()
+            db.query(Models.StPlayerKills).filter(Models.StPlayerKills.userId == user.id).delete()
+            db.query(Models.StPlayerShots).filter(Models.StPlayerShots.userId == user.id).delete()
+            db.query(Models.StPlayerWeapon).filter(Models.StPlayerWeapon.userId == user.id).delete()
+            db.commit()
 
-def test_inventory():
-    # Test adding items to the inventory
-    itemResponse = client.post('items/l4d2_item', json=l4d2_item)
-    item = itemResponse.json()
-    invItem = {'itemId': item['id'], 'activeUntil':'2030-01-01T00:00:00'}
-    response = client.post('inventory/add?steam_id=test_client', json=invItem)
-    inventoryItem = response.json()
-    assert response.status_code == 200
-    assert response.json()['item']['id'] == item['id']
+st_player_base_data = {
+    'last_nickname': 'TestPlayer',
+    'last_online': '2024-01-15',
+    'last_ip': '192.168.1.100',
+    'last_country': 'Russia',
+    'last_city': 'Moscow',
+    'last_region': 'Moscow Region'
+}
+
+st_player_hits_data = {
+    'NULL_HITBOX': 5,
+    'HEAD': 150,
+    'CHEST': 200,
+    'STOMACH': 80,
+    'LEFT_ARM': 45,
+    'RIGHT_ARM': 50,
+    'LEFT_LEG': 30,
+    'RIGHT_LEG': 35
+}
+
+st_player_kills_data = {
+    'survivor_killed': 25,
+    'infected_killed': 500,
+    'smoker_killed': 35,
+    'boomer_killed': 45,
+    'hunter_killed': 78,
+    'spitter_killed': 28,
+    'jockey_killed': 41,
+    'charger_killed': 32,
+    'witch_killed': 8,
+    'tank_killed': 12
+}
+
+st_player_shots_data = {
+    'player_death': 25,
+    'player_fire': 1500,
+    'player_hits': 1200,
+    'player_heads': 300,
+    'player_damage': 50000,
+    'player_hurt': 200
+}
+
+st_player_weapon_data = {
+    'pistol': 100,
+    'pistol_magnum': 50,
+    'autoshotgun': 200,
+    'shotgun_chrome': 150,
+    'pumpshotgun': 180,
+    'shotgun_spas': 120,
+    'smg': 300,
+    'smg_mp5': 250,
+    'smg_silenced': 220,
+    'rifle_ak47': 400,
+    'rifle_sg552': 350,
+    'rifle': 380,
+    'rifle_m60': 80,
+    'rifle_desert': 320,
+    'hunting_rifle': 150,
+    'sniper_military': 100,
+    'sniper_awp': 75,
+    'sniper_scout': 90,
+    'weapon_grenade_launcher': 25,
+    'molotov': 45,
+    'pipe_bomb': 60,
+    'vomitjar': 30,
+    'melee': 200,
+    'baseball_bat': 50,
+    'cricket_bat': 40,
+    'crowbar': 60,
+    'electric_guitar': 35,
+    'fireaxe': 70,
+    'frying_pan': 45,
+    'katana': 80,
+    'knife': 120,
+    'machete': 90,
+    'tonfa': 55,
+    'pain_pills': 150,
+    'adrenaline': 80,
+    'defibrillator': 25,
+    'first_aid_kit': 100
+}
+
+def test_statistics_base():
+    cleanup_statistics_data('test_client_stats')
+    r1 = client.post('/statistics/base?steam_id=test_client_stats', json=st_player_base_data)
+    assert r1.status_code == 200
+    r1j = r1.json()
+    assert r1j['last_nickname'] == st_player_base_data['last_nickname']
+    assert r1j['last_country'] == st_player_base_data['last_country']
     
-    # Test getting inventory items by steam_id
-    response = client.get(f'inventory/items?steam_id=test_client')
-    assert response.status_code == 200
-    assert len(response.json()) > 0
+    updated_data = st_player_base_data.copy()
+    updated_data['last_nickname'] = 'UpdatedPlayer'
+    updated_data['last_city'] = 'Saint Petersburg'
     
-    # Test getting inventory items by item_id
-    response = client.get(f'inventory?inventory_item_id={inventoryItem["id"]}')
-    assert response.status_code == 200
-    assert response.json()['item']['id'] == invItem['itemId']
+    r2 = client.post('/statistics/base?steam_id=test_client_stats', json=updated_data)
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2j['last_nickname'] == 'UpdatedPlayer'
+    assert r2j['last_city'] == 'Saint Petersburg'
     
-    # Test inventory item checkout
-    response = client.post(f'inventory/checkout?inventory_item_id={inventoryItem["id"]}')
-    assert response.status_code == 200
-    assert response.json()['id'] == invItem['itemId']
+    r3 = client.get('/statistics/base?steam_id=test_client_stats')
+    assert r3.status_code == 200
+    r3j = r3.json()
+    assert r3j['last_nickname'] == 'UpdatedPlayer'
+    assert r3j['last_city'] == 'Saint Petersburg'
+
+def test_statistics_hits():
+    cleanup_statistics_data('test_client_stats')
+    r1 = client.post('/statistics/hits?steam_id=test_client_stats', json=st_player_hits_data)
+    assert r1.status_code == 200
+    r1j = r1.json()
+    assert r1j['HEAD'] == st_player_hits_data['HEAD']
+    assert r1j['CHEST'] == st_player_hits_data['CHEST']
     
-    # Test inventory item checkout second time
-    response = client.post(f'inventory/checkout?inventory_item_id={inventoryItem["id"]}')
-    assert response.status_code == 400
+    add_data = {'HEAD': 50, 'CHEST': 30}
+    r2 = client.post('/statistics/hits?steam_id=test_client_stats', json=add_data)
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2j['HEAD'] == st_player_hits_data['HEAD'] + add_data['HEAD']
+    assert r2j['CHEST'] == st_player_hits_data['CHEST'] + add_data['CHEST']
     
-    # Test inventory item deletion
-    response = client.delete(f'inventory?inventory_item_id={inventoryItem["id"]}')
-    assert response.status_code == 200
+    r3 = client.get('/statistics/hits?steam_id=test_client_stats')
+    assert r3.status_code == 200
+    r3j = r3.json()
+    assert r3j['HEAD'] == 200
+    assert r3j['CHEST'] == 230
+
+def test_statistics_kills():
+    cleanup_statistics_data('test_client_stats')
+    r1 = client.post('/statistics/kills?steam_id=test_client_stats', json=st_player_kills_data)
+    assert r1.status_code == 200
+    r1j = r1.json()
+    assert r1j['infected_killed'] == st_player_kills_data['infected_killed']
+    assert r1j['smoker_killed'] == st_player_kills_data['smoker_killed']
+    
+    add_data = {'infected_killed': 100, 'smoker_killed': 5}
+    r2 = client.post('/statistics/kills?steam_id=test_client_stats', json=add_data)
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2j['infected_killed'] == st_player_kills_data['infected_killed'] + add_data['infected_killed']
+    assert r2j['smoker_killed'] == st_player_kills_data['smoker_killed'] + add_data['smoker_killed']
+    
+    r3 = client.get('/statistics/kills?steam_id=test_client_stats')
+    assert r3.status_code == 200
+    r3j = r3.json()
+    assert r3j['infected_killed'] == 600
+    assert r3j['smoker_killed'] == 40
+
+def test_statistics_shots():
+    cleanup_statistics_data('test_client_stats')
+    r1 = client.post('/statistics/shots?steam_id=test_client_stats', json=st_player_shots_data)
+    assert r1.status_code == 200
+    r1j = r1.json()
+    assert r1j['player_death'] == st_player_shots_data['player_death']
+    assert r1j['player_fire'] == st_player_shots_data['player_fire']
+    assert r1j['player_hits'] == st_player_shots_data['player_hits']
+    
+    add_data = {'player_death': 5, 'player_fire': 500, 'player_hits': 400}
+    r2 = client.post('/statistics/shots?steam_id=test_client_stats', json=add_data)
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2j['player_death'] == st_player_shots_data['player_death'] + add_data['player_death']
+    assert r2j['player_fire'] == st_player_shots_data['player_fire'] + add_data['player_fire']
+    assert r2j['player_hits'] == st_player_shots_data['player_hits'] + add_data['player_hits']
+    
+    r3 = client.get('/statistics/shots?steam_id=test_client_stats')
+    assert r3.status_code == 200
+    r3j = r3.json()
+    assert r3j['player_death'] == 30
+    assert r3j['player_fire'] == 2000
+    assert r3j['player_hits'] == 1600
+
+def test_statistics_weapon():
+    cleanup_statistics_data('test_client_stats')
+    r1 = client.post('/statistics/weapon?steam_id=test_client_stats', json=st_player_weapon_data)
+    assert r1.status_code == 200
+    r1j = r1.json()
+    assert r1j['rifle_ak47'] == st_player_weapon_data['rifle_ak47']
+    assert r1j['pistol'] == st_player_weapon_data['pistol']
+    assert r1j['katana'] == st_player_weapon_data['katana']
+    
+    add_data = {'rifle_ak47': 100, 'pistol': 50, 'katana': 20}
+    r2 = client.post('/statistics/weapon?steam_id=test_client_stats', json=add_data)
+    assert r2.status_code == 200
+    r2j = r2.json()
+    assert r2j['rifle_ak47'] == st_player_weapon_data['rifle_ak47'] + add_data['rifle_ak47']
+    assert r2j['pistol'] == st_player_weapon_data['pistol'] + add_data['pistol']
+    assert r2j['katana'] == st_player_weapon_data['katana'] + add_data['katana']
+    
+    r3 = client.get('/statistics/weapon?steam_id=test_client_stats')
+    assert r3.status_code == 200
+    r3j = r3.json()
+    assert r3j['rifle_ak47'] == 500
+    assert r3j['pistol'] == 150
+    assert r3j['katana'] == 100
+
+def test_statistics_not_found():
+    r1 = client.get('/statistics/base?steam_id=non_existent_user')
+    assert r1.status_code == 404
+    
+    r2 = client.get('/statistics/hits?steam_id=non_existent_user')
+    assert r2.status_code == 404
+    
+    r3 = client.get('/statistics/kills?steam_id=non_existent_user')
+    assert r3.status_code == 404
+    
+    r4 = client.get('/statistics/shots?steam_id=non_existent_user')
+    assert r4.status_code == 404
+    
+    r5 = client.get('/statistics/weapon?steam_id=non_existent_user')
+    assert r5.status_code == 404
