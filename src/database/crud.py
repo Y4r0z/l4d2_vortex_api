@@ -5,6 +5,7 @@ import src.types.api_models as Schemas
 import src.database.predefined as Predefined
 import datetime
 from typing import List
+from src.lib.crud_lib import CrudService
 
 def get_user(db: Session, steam_id: str):
     return db.query(Models.User).filter(Models.User.steamId == steam_id).first()
@@ -95,7 +96,6 @@ def edit_privilegeStatus(db: Session, privStatus_id: int, priv_id: int, until: d
     db.refresh(priv)
     return priv
 
-
 def set_welcomePhrase(db: Session, user_id: int, phrase: str) -> Models.WelcomePhrase:
     obj = db.query(Models.WelcomePhrase).filter(Models.WelcomePhrase.userId == user_id).first()
     if obj is None:
@@ -151,11 +151,7 @@ def get_discord_steam(db: Session, user: Models.User) -> Models.SteamDiscordLink
     link = db.query(Models.SteamDiscordLink).filter(Models.SteamDiscordLink.userId == user.id).first()
     return link
 
-
 def create_logs(db: Session, logs: List[Schemas.ChatLog]):
-    """
-    Создает новые записи логов чата с обработкой ошибок
-    """
     try:
         chat_logs = [
             Models.ChatLog(
@@ -176,9 +172,6 @@ def create_logs(db: Session, logs: List[Schemas.ChatLog]):
         raise
 
 def get_logs(db: Session, text: str, steam_id: str, nick: str | None, server: str, offset: int, count: int, start_time: datetime.datetime, end_time: datetime.datetime) -> List[Models.ChatLog]:
-    """
-    Получает логи чата с оптимизированными запросами
-    """
     try:
         count = min(count, 100)
         
@@ -198,21 +191,9 @@ def get_logs(db: Session, text: str, steam_id: str, nick: str | None, server: st
         if server:
             query = query.filter(Models.ChatLog.server.like(f'%{server}%'))
             
-        # Сортируем и применяем пагинацию
         return query.order_by(Models.ChatLog.time.desc()).offset(offset).limit(count).all()
     except Exception as e:
         raise
-
-
-def get_player_rank(db: Session, user: Models.User) -> tuple[int] | None:
-    subquery = select(
-        Models.RoundScore.userId, 
-        func.dense_rank().over(order_by=func.sum(Models.RoundScore.agression + Models.RoundScore.support + Models.RoundScore.perks).desc()).label('rank')
-    ).group_by(Models.RoundScore.userId).alias('tbl')
-    query = select(subquery.c.rank).where(subquery.c.userId == user.id)
-    result = db.execute(query).first()
-    if result is None: return None
-    return result.tuple()[0]
 
 def get_player_rank_score(db: Session, user: Models.User) -> tuple[int, int] | None:
     subquery = select(
@@ -224,6 +205,10 @@ def get_player_rank_score(db: Session, user: Models.User) -> tuple[int, int] | N
     result = db.execute(query).first()
     if result is None: return None
     return result.tuple()
+
+def get_player_rank(db: Session, user: Models.User) -> int | None:
+    result = get_player_rank_score(db, user)
+    return result[0] if result else None
 
 def get_player_music(db: Session, user_id: int) -> Models.PlayerMusic | None:
     return db.query(Models.PlayerMusic).filter(Models.PlayerMusic.userId == user_id).first()
@@ -313,7 +298,6 @@ def set_player_volume(db: Session, user_id: int, volume_data: Schemas.PlayerVolu
     db.refresh(volume)
     return volume
 
-
 def get_player_sounds(db: Session) -> List[Models.PlayerSound]:
     return db.query(Models.PlayerSound).all()
 
@@ -350,116 +334,40 @@ def increment_sound_playcount(db: Session, sound_id: int) -> Models.PlayerSound:
 def get_sound_by_id(db: Session, sound_id: int) -> Models.PlayerSound | None:
     return db.query(Models.PlayerSound).filter(Models.PlayerSound.id == sound_id).first()
 
-
 def get_player_base(db: Session, user_id: int) -> Models.StPlayerBase | None:
     return db.query(Models.StPlayerBase).filter(Models.StPlayerBase.userId == user_id).first()
 
 def replace_player_base(db: Session, user_id: int, base_data: Schemas.StPlayerBase.Input) -> Models.StPlayerBase:
-    player_base = get_player_base(db, user_id)
-    if player_base:
-        for field, value in base_data.model_dump().items():
-            if value is not None:
-                setattr(player_base, field, value)
-        db.commit()
-        db.refresh(player_base)
-        return player_base
-    else:
-        player_base = Models.StPlayerBase(
-            userId=user_id,
-            **base_data.model_dump()
-        )
-        db.add(player_base)
-        db.commit()
-        db.refresh(player_base)
-        return player_base
+    crud = CrudService(db)
+    return crud.replace_stats_data(Models.StPlayerBase, user_id, base_data.model_dump())
 
 def get_player_hits(db: Session, user_id: int) -> Models.StPlayerHits | None:
     return db.query(Models.StPlayerHits).filter(Models.StPlayerHits.userId == user_id).first()
 
 def add_player_hits(db: Session, user_id: int, hits_data: Schemas.StPlayerHits.Input) -> Models.StPlayerHits:
-    player_hits = get_player_hits(db, user_id)
-    if player_hits:
-        for field, value in hits_data.model_dump().items():
-            current_value = getattr(player_hits, field)
-            setattr(player_hits, field, current_value + value)
-        db.commit()
-        db.refresh(player_hits)
-        return player_hits
-    else:
-        player_hits = Models.StPlayerHits(
-            userId=user_id,
-            **hits_data.model_dump()
-        )
-        db.add(player_hits)
-        db.commit()
-        db.refresh(player_hits)
-        return player_hits
+    crud = CrudService(db)
+    return crud.add_stats_data(Models.StPlayerHits, user_id, hits_data.model_dump())
 
 def get_player_kills(db: Session, user_id: int) -> Models.StPlayerKills | None:
     return db.query(Models.StPlayerKills).filter(Models.StPlayerKills.userId == user_id).first()
 
 def add_player_kills(db: Session, user_id: int, kills_data: Schemas.StPlayerKills.Input) -> Models.StPlayerKills:
-    player_kills = get_player_kills(db, user_id)
-    if player_kills:
-        for field, value in kills_data.model_dump().items():
-            current_value = getattr(player_kills, field)
-            setattr(player_kills, field, current_value + value)
-        db.commit()
-        db.refresh(player_kills)
-        return player_kills
-    else:
-        player_kills = Models.StPlayerKills(
-            userId=user_id,
-            **kills_data.model_dump()
-        )
-        db.add(player_kills)
-        db.commit()
-        db.refresh(player_kills)
-        return player_kills
+    crud = CrudService(db)
+    return crud.add_stats_data(Models.StPlayerKills, user_id, kills_data.model_dump())
 
 def get_player_shots(db: Session, user_id: int) -> Models.StPlayerShots | None:
     return db.query(Models.StPlayerShots).filter(Models.StPlayerShots.userId == user_id).first()
 
 def add_player_shots(db: Session, user_id: int, shots_data: Schemas.StPlayerShots.Input) -> Models.StPlayerShots:
-    player_shots = get_player_shots(db, user_id)
-    if player_shots:
-        for field, value in shots_data.model_dump().items():
-            current_value = getattr(player_shots, field)
-            setattr(player_shots, field, current_value + value)
-        db.commit()
-        db.refresh(player_shots)
-        return player_shots
-    else:
-        player_shots = Models.StPlayerShots(
-            userId=user_id,
-            **shots_data.model_dump()
-        )
-        db.add(player_shots)
-        db.commit()
-        db.refresh(player_shots)
-        return player_shots
+    crud = CrudService(db)
+    return crud.add_stats_data(Models.StPlayerShots, user_id, shots_data.model_dump())
 
 def get_player_weapon(db: Session, user_id: int) -> Models.StPlayerWeapon | None:
     return db.query(Models.StPlayerWeapon).filter(Models.StPlayerWeapon.userId == user_id).first()
 
 def add_player_weapon(db: Session, user_id: int, weapon_data: Schemas.StPlayerWeapon.Input) -> Models.StPlayerWeapon:
-    player_weapon = get_player_weapon(db, user_id)
-    if player_weapon:
-        for field, value in weapon_data.model_dump().items():
-            current_value = getattr(player_weapon, field)
-            setattr(player_weapon, field, current_value + value)
-        db.commit()
-        db.refresh(player_weapon)
-        return player_weapon
-    else:
-        player_weapon = Models.StPlayerWeapon(
-            userId=user_id,
-            **weapon_data.model_dump()
-        )
-        db.add(player_weapon)
-        db.commit()
-        db.refresh(player_weapon)
-        return player_weapon
+    crud = CrudService(db)
+    return crud.add_stats_data(Models.StPlayerWeapon, user_id, weapon_data.model_dump())
     
 def get_user_by_id(db: Session, user_id: int) -> Models.User | None:
     return db.query(Models.User).filter(Models.User.id == user_id).first()

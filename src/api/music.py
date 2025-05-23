@@ -4,9 +4,9 @@ from src.database import crud as Crud
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import List, TypeVar
-from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getUser
+from src.lib.tools_lib import requireToken, get_db, getOrCreateUser, checkToken, getUser
 from fastapi_filter import FilterDepends
-from src.api.filter import Pagination
+from src.services.filter import Pagination
 
 music_api = APIRouter()
 

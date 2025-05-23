@@ -5,7 +5,7 @@ from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import datetime
-from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken, getRedis
+from src.lib.tools_lib import getUser, requireToken, get_db, getOrCreateUser, getOrCreateBalance, checkToken, getRedis
 import src.lib.steam_api as SteamAPI
 from redis.asyncio import Redis
 
@@ -46,7 +46,6 @@ async def get_player_profile(steam_id: str, cached: bool = True, db: Session = D
     rank = Crud.get_player_rank(db, user)
     perks = Crud.get_perks(db, user.id)
     privileges = Crud.get_privilegeStatuses(db, user.id)
-    from src.api.tools import getOrCreateBalance
     balance = getOrCreateBalance(db, user)
     discord = Crud.get_discord_steam(db, user)
     discordId = None

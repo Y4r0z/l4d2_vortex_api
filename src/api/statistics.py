@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, APIRouter
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
-from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getUser
+from src.lib.tools_lib import requireToken, get_db, getOrCreateUser, checkToken, getUser
 
 statistics_api = APIRouter()
 

@@ -6,7 +6,7 @@ import datetime
 import jwt
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
-from src.api.tools import get_db, getOrCreateUser, requireToken, checkToken
+from src.lib.tools_lib import get_db, getOrCreateUser, requireToken, checkToken
 from src.settings import SECRET_KEY
 import src.lib.steam_api as SteamAPI
 

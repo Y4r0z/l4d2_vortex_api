@@ -4,7 +4,7 @@ from src.database import crud as Crud
 from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import List
-from src.api.tools import requireToken, get_db, checkToken
+from src.lib.tools_lib import requireToken, get_db, checkToken
 
 soundpad_api = APIRouter()
 

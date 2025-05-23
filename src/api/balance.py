@@ -5,7 +5,7 @@ from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import Optional, List, Union
 import datetime
-from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
+from src.lib.tools_lib import getUser, requireToken, get_db, getOrCreateUser, checkToken, getOrCreateBalance
 import numpy as np
 
 DROP_COOLDOWN = datetime.timedelta(hours=6)
@@ -14,14 +14,6 @@ DROP_VALUE_LOC = 400
 DROP_VALUE_SCALE = 300
 
 balance_api = APIRouter()
-
-def getOrCreateBalance(db: Session, user: Models.User):
-    if db.query(Models.Balance).filter(Models.Balance.userId == user.id).first() is None:
-        db.add(Models.Balance(user=user, value=0))
-    db.commit()
-    db.refresh(user)
-    
-    return user.balance
 
 @balance_api.get('', response_model=Schemas.Balance)
 def get_balance(steam_id: str, db: Session = Depends(get_db)):
@@ -132,15 +124,6 @@ def drop_money(steam_id: str, db: Session = Depends(get_db)):
 
 @balance_api.post('/giveaway', response_model=Union[Schemas.Giveaway.Output, Schemas.StatusCode])
 def create_giveaway(steam_id: str, info: Schemas.Giveaway.Input, db: Session = Depends(get_db), token: str = Depends(requireToken)):
-    """
-    Создает раздачу токенов ценой баланса раздавающего.\n
-    status:
-     - 0: Раздача создана
-     - 1: Неправильная награда (неверный формат числа)
-     - 2: Недостаточно средств
-     - 3: Неверная дата окочания
-     - 4: Неверное количество использований (неверный формат числа)
-    """
     try:
         checkToken(db, token)
         user = getOrCreateUser(db, steam_id)
@@ -173,16 +156,6 @@ def create_giveaway(steam_id: str, info: Schemas.Giveaway.Input, db: Session = D
 
 @balance_api.get('/giveaway/checkout', response_model=Union[Schemas.Giveaway.Output, Schemas.StatusCode])
 def checkout_giveaway(giveaway_id: int, steam_id: str, db: Session = Depends(get_db)):
-    """
-    Учавствует в раздаче `giveaway_id` от имени игрока `steam_id`.\n
-    status:
-     - 0: Награда получена
-     - 1: Раздача не найдена
-     - 2: Раздача закончена (по времени)
-     - 3: Награды кончились (окончена по количеству использований)
-     - 4: Игрок уже участвовал в раздаче
-     - 5: Создатель раздачи не может в ней участвовать
-    """
     try:
         user = getOrCreateUser(db, steam_id)
         balance = getOrCreateBalance(db, user)
@@ -223,9 +196,6 @@ def checkout_giveaway(giveaway_id: int, steam_id: str, db: Session = Depends(get
 
 @balance_api.delete('/giveaway')
 def delete_giveaway(giveaway_id: int, db: Session = Depends(get_db), token: str = Depends(requireToken)):
-    """
-    Удаляет раздачу и возвращает коины владельцу.
-    """
     try:
         checkToken(db, token)
         giveaway = db.query(Models.Giveaway).filter(Models.Giveaway.id == giveaway_id).first()
@@ -250,9 +220,6 @@ def delete_giveaway(giveaway_id: int, db: Session = Depends(get_db), token: str 
 
 @balance_api.get('/giveaway/all', response_model=list[Schemas.Giveaway.Output])
 def get_giveaways_by_steam(steam_id: str, db: Session = Depends(get_db)):
-    """
-    Получает все активные раздачи пользователя.
-    """
     try:
         user = getUser(db, steam_id)
         now = datetime.datetime.now().replace(tzinfo=datetime.timezone.utc)

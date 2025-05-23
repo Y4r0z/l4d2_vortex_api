@@ -6,9 +6,8 @@ from sqlalchemy import func, select, text, Integer
 from typing import List
 import datetime
 import calendar
-from src.api.tools import requireToken, get_db, getOrCreateUser, checkToken, getRedis, getUser
-from src.api.filter import SeasonFilter, RoundScoreFilter, Pagination
-from src.api.balance import getOrCreateBalance
+from src.lib.tools_lib import requireToken, get_db, getOrCreateUser, checkToken, getRedis, getUser
+from src.services.filter import SeasonFilter, RoundScoreFilter, Pagination
 from typing import TypeVar
 from fastapi_filter import FilterDepends
 from redis.asyncio import Redis
@@ -193,7 +192,7 @@ async def distribute_season_rewards(db: Session, date: datetime.date, redis: Red
                 has_privilege = getattr(user_privileges, reward["privilege_name"], False)
                 
                 if has_privilege:
-                    balance = getOrCreateBalance(db, user)
+                    balance = Crud.get_or_create_balance(db, user)
                     balance.value += reward["coins"]
                     
                     transaction = Models.Transaction(

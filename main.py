@@ -11,7 +11,7 @@ from src.api.auth import auth_api
 from src.api.score import score_api
 from src.api.items import items_api
 from src.api.inventory import inventory_api
-from src.api.tools import app_lifespan
+from src.lib.tools_lib import app_lifespan
 from src.api.player import player_api
 from src.api.statistics import statistics_api
 from src.api.info import info_api

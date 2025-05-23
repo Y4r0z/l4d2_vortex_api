@@ -4,7 +4,7 @@ from src.types import api_models as Schemas
 from sqlalchemy.orm import Session
 from typing import List
 import datetime
-from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken
+from src.lib.tools_lib import getUser, requireToken, get_db, getOrCreateUser, checkToken
 from src.services.logger import api_logger
 logs_api = APIRouter()
 @logs_api.post('')
