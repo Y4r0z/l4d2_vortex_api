@@ -7,7 +7,6 @@ from sqlalchemy import select
 import datetime
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken, getRedis
 from redis.asyncio import Redis
-from src.database.sourcebans import getSourcebans, SbServer, AsyncSession
 import json
 
 DEFAULT_EXPIRE = 86400

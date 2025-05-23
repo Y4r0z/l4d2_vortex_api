@@ -1,10 +1,7 @@
 from celery import Celery
 from celery.signals import worker_ready
 import src.settings as settings
-from sqlalchemy import select, func, Session
-from src.database.sourcebans import getSourcebansSync, SbServer
-from src.lib.rcon_api import getRconPlayers
-from src.lib.source_query import getServerInfo, getServerPlayers
+from sqlalchemy import select, func
 import datetime
 import redis
 import json
@@ -36,7 +33,6 @@ redis_pool = redis.ConnectionPool.from_url(
 
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
-    sender.add_periodic_task(10.0, fetch_server_info.s(), name='fetch_servers')
     sender.add_periodic_task(600.0, parse_group.s(), name='parse_group')
     sender.add_periodic_task(86400.0, update_music_list.s(), name='update_music_list')
     sender.add_periodic_task(300.0, update_player_ranks.s(), name='update_player_ranks')
@@ -45,103 +41,6 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
 def at_start(sender, **kwargs):
 	with sender.app.connection() as conn:
 		sender.app.send_task('src.celery.tasks.parse_group', connection=conn)
-
-def process_single_server(server: SbServer, db_session: Session):
-	players = []
-	server_id = f"{server.ip}:{server.port}"
-	online_user_ids = []
-	
-	try:
-		serverInfo = getServerInfo(server, timeout=5)
-	except Exception as e:
-		return
-	
-	try:
-		a2sPlayers = getServerPlayers(server)
-	except Exception as e:
-		a2sPlayers = []
-
-	try:
-		rcon_players = getRconPlayers(server)
-		
-		for p in rcon_players:
-			try:
-				tt = next((p2.duration for p2 in a2sPlayers if p2.name == p.name), 0)
-			except Exception as e:
-				tt = 0
-			
-			players.append({
-				'id': p.id,
-				'ip': p.ip,
-				'name': p.name,
-				'time': tt,
-				'steamId': p.steam64id
-			})
-			
-			user = Crud.get_user(db_session, p.steam64id)
-			if user:
-				online_user_ids.append(user.id)
-				Crud.set_user_online(db_session, user.id, server.sid)
-	except Exception as e:
-		pass
-
-	finalServer = {
-		'id': server.sid,
-		'name': serverInfo.server_name,
-		'map': serverInfo.map_name,
-		'playersCount': serverInfo.player_count,
-		'maxPlayersCount': serverInfo.max_players,
-		'ip': server.ip,
-		'port': server.port,
-		'ping': serverInfo.ping,
-		'time': datetime.datetime.now().isoformat(),
-		'keywords': serverInfo.keywords,
-		'players': players
-	}
-
-	try:
-		with redis.Redis(connection_pool=redis_pool) as r:
-			r.set(f'server_info:{server.sid}', json.dumps(finalServer), ex=86400)
-	except redis.RedisError as e:
-		pass
-	
-	return online_user_ids
-
-@celery.task(
-	bind=True,
-	max_retries=3,
-	retry_backoff=True,
-	soft_time_limit=300,
-	time_limit=360,
-	name="fetch_server_info"
-)
-def fetch_server_info(self):
-	sb = None
-	
-	try:
-		sb = next(getSourcebansSync())
-		
-		serversQuery = select(SbServer).where(SbServer.enabled == 1)
-		servers = [s._tuple()[0] for s in sb.execute(serversQuery).all()]
-		
-		with SessionLocal() as db:
-			all_online_user_ids = []
-			
-			for server in servers:
-				try:
-					online_ids = process_single_server(server, db)
-					if online_ids:
-						all_online_user_ids.extend(online_ids)
-				except Exception as e:
-					continue
-			
-			Crud.bulk_update_users_offline(db, all_online_user_ids)
-		
-	except Exception as exc:
-		raise self.retry(exc=exc, countdown=60)
-	finally:
-		if sb is not None:
-			sb.close()
 
 @celery.task(
 	bind=True,

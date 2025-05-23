@@ -1,4 +1,3 @@
-
 import pytest
 from dotenv import load_dotenv
 import os
@@ -44,39 +43,39 @@ def run_fixture():
 
 
 def test_perks_post():
-    r = client.post(f'/perks?steam_id=test_client', json=perkset)
+    r = client.post(f'/player/test_client/perks', json=perkset)
     assert r.status_code == 200
 
 def test_perks_get():
-    r = client.get(f'/perks?steam_id=test_client')
+    r = client.get(f'/player/test_client/perks')
     assert r.status_code == 200
 
 def test_privilege():
-    r1 = client.post(f'/privilege?steam_id=test_client&privilege_id=5&until=2030-01-01T00:00:00')
+    r1 = client.post(f'/player/test_client/privileges?privilege_id=5&until=2030-01-01T00:00:00')
     assert r1.status_code == 200
-    r2 = client.get(f'/privilege?steam_id=test_client')
+    r2 = client.get(f'/player/test_client/privileges')
     assert r2.status_code == 200
-    r3 = client.get(f'/privilege/all?steam_id=test_client')
+    r3 = client.get(f'/player/test_client/privileges/all')
     assert r3.status_code == 200
     priv = r1.json()
-    r4 = client.delete(f'/privilege?id={priv["id"]}')
+    r4 = client.delete(f'/player/privileges/{priv["id"]}')
     assert r4.status_code == 200
 
 def test_welcome_phrase():
-    r = client.post(f'/privilege/welcome_phrase?steam_id=test_client&phrase=test_phrase')
+    r = client.post(f'/player/test_client/welcome_phrase?phrase=test_phrase')
     assert r.status_code == 200
 
 def test_custom_prefix():
-    r = client.post(f'/privilege/custom_prefix?steam_id=test_client&prefix=test_prefix')
+    r = client.post(f'/player/test_client/custom_prefix?prefix=test_prefix')
     assert r.status_code == 200
 
 def test_privilege_types_get():
-    r = client.get('/privilege/types')
+    r = client.get('/player/privilege/types')
     assert r.status_code == 200
     assert len(r.json()) > 0
 
 def test_user_search():
-    r = client.get('/user/search?query=test_client')
+    r = client.get('/player/search?query=test_client')
     assert r.status_code == 200
     assert len(r.json()) > 0
 

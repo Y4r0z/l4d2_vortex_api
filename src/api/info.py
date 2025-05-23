@@ -8,7 +8,6 @@ import datetime
 from src.lib import steam_api as SteamAPI
 from src.api.tools import getUser, requireToken, get_db, getOrCreateUser, checkToken, getRedis
 from redis.asyncio import Redis
-from src.database.sourcebans import getSourcebans, SbServer, AsyncSession
 import json
 import asyncio
 import logging
@@ -19,19 +18,6 @@ celery_app = Celery('tasks', broker='redis://localhost:6379/0')
 
 info_api = APIRouter()
 DONATER_CACHE_TIME = 3600
-
-@info_api.get('/server/all', response_model=list[Schemas.ServerInfo])
-async def get_all_servers(redis: Redis = Depends(getRedis), sb: AsyncSession = Depends(getSourcebans)):
-    """
-    Возвращает список всех серверов SB.\n
-    """
-    serversQuery = select(SbServer).where(SbServer.enabled == 1)
-    servers = [s._tuple()[0] for s in (await sb.execute(serversQuery)).all()]
-    result = []
-    for server in servers:
-        cached = await redis.get(f'server_info:{server.sid}')
-        if cached is not None: result.append(json.loads(cached))
-    return result
 
 @info_api.get('/group', response_model=Schemas.GroupInfo)
 async def get_group_info(redis: Redis = Depends(getRedis)):

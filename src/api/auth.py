@@ -6,7 +6,7 @@ import datetime
 import jwt
 from src.database import crud as Crud, models as Models
 from src.types import api_models as Schemas
-from src.api.tools import get_db, getOrCreateUser, getOrCreateBalance
+from src.api.tools import get_db, getOrCreateUser, requireToken, checkToken
 from src.settings import SECRET_KEY
 import src.lib.steam_api as SteamAPI
 
@@ -70,6 +70,11 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
     
     return user
+
+@auth_api.get('/check_token')
+def check_token(db: Session = Depends(get_db), token: str = Depends(requireToken)):
+    checkToken(db, token)
+    return "token is valid"
 
 @auth_api.post('/steam/verify', response_model=Schemas.SteamVerifyResponse)
 async def verify_steam(
