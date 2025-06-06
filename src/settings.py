@@ -5,7 +5,6 @@ load_dotenv(override=True)
 
 # Database connections
 SQL_CONNECT_STRING: str = environ.get('SQL_CONNECT_STRING') #type: ignore
-SOURCEBANS_CONNECT_STRING: str = environ.get('SOURCEBANS_CONNECT_STRING') #type: ignore
 
 # API Keys
 STEAM_TOKEN: str = environ.get('STEAM_TOKEN') #type: ignore
@@ -36,6 +35,5 @@ assert SERVER_TOKEN is not None, 'SERVER_TOKEN not set in environment variables'
 assert SECRET_KEY is not None, 'SECRET_KEY not set in environment variables'
 assert REDIS_CONNECT_STRING is not None, 'REDIS_CONNECT_STRING not set in environment variables'
 assert REDIS_DATABASE is not None, 'REDIS_DATABASE not set in environment variables'
-assert SOURCEBANS_CONNECT_STRING is not None, 'SOURCEBANS_CONNECT_STRING not set in environment variables'
 assert CELERY_BROKER_URL is not None, 'CELERY_BROKER_URL not set in environment variables'
 assert CELERY_RESULT_BACKEND is not None, 'CELERY_RESULT_BACKEND not set in environment variables'

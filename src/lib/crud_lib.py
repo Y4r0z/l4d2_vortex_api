@@ -56,3 +56,11 @@ def getObj(obj_id: int, db: Session, model: type[T]) -> T:
     if (obj := (db.query(model).filter(model.id == obj_id).first())) is None:
         raise HTTPException(404, f'Object ({model.__tablename__}) with id {obj_id} not found!')
     return obj
+
+def get_or_create_balance(db: Session, user: Models.User) -> Models.Balance:
+    if not user.balance:
+        balance = Models.Balance(user=user, value=0)
+        db.add(balance)
+        db.commit()
+        db.refresh(user)
+    return user.balance

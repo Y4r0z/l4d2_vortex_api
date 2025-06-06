@@ -4,3 +4,4 @@ __pycache__
 .vscode
 wget-log
 logs/*
+venv/*

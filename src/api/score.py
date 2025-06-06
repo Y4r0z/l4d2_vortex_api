@@ -12,6 +12,7 @@ from typing import TypeVar
 from fastapi_filter import FilterDepends
 from redis.asyncio import Redis
 import src.lib.steam_api as SteamAPI
+from src.lib.crud_lib import get_or_create_balance
 from sqlalchemy.sql.expression import cast
 import src.database.crud as Crud
 import json
@@ -192,7 +193,7 @@ async def distribute_season_rewards(db: Session, date: datetime.date, redis: Red
                 has_privilege = getattr(user_privileges, reward["privilege_name"], False)
                 
                 if has_privilege:
-                    balance = Crud.get_or_create_balance(db, user)
+                    balance = get_or_create_balance(db, user)
                     balance.value += reward["coins"]
                     
                     transaction = Models.Transaction(
