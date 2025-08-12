@@ -8,6 +8,7 @@ import datetime
 import calendar
 from src.lib.tools_lib import requireToken, get_db, getOrCreateUser, checkToken, getRedis, getUser
 from src.services.filter import SeasonFilter, RoundScoreFilter, Pagination
+from src.services.rating import RatingService
 from typing import TypeVar
 from fastapi_filter import FilterDepends
 from redis.asyncio import Redis
@@ -383,3 +384,54 @@ async def get_game_player_rank(steam_id: str, db: Session = Depends(get_db), red
         if isinstance(e, HTTPException):
             raise
         raise HTTPException(status_code=500, detail=f"Error retrieving player rank data: {str(e)}")
+
+@score_api.get('/rating', response_model=Schemas.PlayerRatingResponse)
+async def get_player_rating(
+    steam_id: str,
+    cached: bool = True,
+    db: Session = Depends(get_db),
+    redis: Redis = Depends(getRedis)
+):
+    cache_key = f"player_rating:{steam_id}"
+    
+    if cached:
+        cached_result = await redis.get(cache_key)
+        if cached_result:
+            return json.loads(cached_result)
+    
+    user = getUser(db, steam_id)
+    rating_service = RatingService(db)
+    rating = rating_service.calculate_player_rating(user.id)
+    
+    if not rating:
+        raise HTTPException(
+            status_code=404, 
+            detail="Недостаточно данных для расчета рейтинга игрока"
+        )
+    
+    result = {
+        "shooting_skills": {
+            "points": rating.shooting_skills.points,
+            "normalized_score": rating.shooting_skills.normalized_score
+        },
+        "game_efficiency": {
+            "points": rating.game_efficiency.points,
+            "normalized_score": rating.game_efficiency.normalized_score
+        },
+        "combat_effectiveness": {
+            "points": rating.combat_effectiveness.points,
+            "normalized_score": rating.combat_effectiveness.normalized_score
+        },
+        "experience_activity": {
+            "points": rating.experience_activity.points,
+            "normalized_score": rating.experience_activity.normalized_score
+        },
+        "total": {
+            "points": rating.total_points,
+            "rating": rating.rating,
+            "class": rating.rating_class
+        }
+    }
+    
+    await redis.set(cache_key, json.dumps(result), ex=10800)
+    return result

@@ -46,7 +46,7 @@ def initialize_loggers():
 	global api_logger, error_logger, slow_logger, _logger_initialized
 	
 	if not _logger_initialized:
-		clear_log_files()
+		#clear_log_files()
 		
 		api_logger = setup_logger("api.api", "logs/api.log")
 		error_logger = setup_logger("api.error", "logs/error.log", level=logging.ERROR)

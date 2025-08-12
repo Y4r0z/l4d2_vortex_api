@@ -11,6 +11,7 @@ import time
 from src.database.models import SessionLocal
 from src.database import models as Models
 from src.database import crud as Crud
+from src.services.rating import RatingService
 
 celery = Celery(__name__)
 celery.conf.broker_url = settings.CELERY_BROKER_URL
@@ -36,6 +37,7 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
     sender.add_periodic_task(600.0, parse_group.s(), name='parse_group')
     sender.add_periodic_task(86400.0, update_music_list.s(), name='update_music_list')
     sender.add_periodic_task(300.0, update_player_ranks.s(), name='update_player_ranks')
+    sender.add_periodic_task(10800.0, update_player_ratings.s(), name='update_player_ratings')
 
 @worker_ready.connect
 def at_start(sender, **kwargs):
@@ -209,5 +211,75 @@ def update_player_ranks(self):
             pipeline.execute()
             
             return f"Updated ranks for {len(results)} players"
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=60)
+    
+
+@celery.task(
+    bind=True,
+    max_retries=3,
+    retry_backoff=True,
+    soft_time_limit=300,
+    time_limit=360,
+    name="update_player_ratings"
+)
+def update_player_ratings(self):
+    try:
+        with SessionLocal() as db:
+            rating_service = RatingService(db)
+            
+            one_month_ago = datetime.datetime.now() - datetime.timedelta(days=30)
+            
+            active_users_query = select(Models.User.id, Models.User.steamId).join(
+                Models.PlaySession, Models.User.id == Models.PlaySession.userId
+            ).filter(
+                Models.PlaySession.timeFrom >= one_month_ago
+            ).distinct()
+            
+            active_users = db.execute(active_users_query).all()
+            
+            if not active_users:
+                return "No active users found"
+            
+            r = redis.Redis(connection_pool=redis_pool)
+            pipeline = r.pipeline()
+            updated_count = 0
+            
+            for user_id, steam_id in active_users:
+                try:
+                    rating = rating_service.calculate_player_rating(user_id)
+                    if rating:
+                        cache_key = f"player_rating:{steam_id}"
+                        result = {
+                            "shooting_skills": {
+                                "points": rating.shooting_skills.points,
+                                "normalized_score": rating.shooting_skills.normalized_score
+                            },
+                            "game_efficiency": {
+                                "points": rating.game_efficiency.points,
+                                "normalized_score": rating.game_efficiency.normalized_score
+                            },
+                            "combat_effectiveness": {
+                                "points": rating.combat_effectiveness.points,
+                                "normalized_score": rating.combat_effectiveness.normalized_score
+                            },
+                            "experience_activity": {
+                                "points": rating.experience_activity.points,
+                                "normalized_score": rating.experience_activity.normalized_score
+                            },
+                            "total": {
+                                "points": rating.total_points,
+                                "rating": rating.rating,
+                                "class": rating.rating_class
+                            }
+                        }
+                        pipeline.set(cache_key, json.dumps(result), ex=10800)
+                        updated_count += 1
+                except Exception:
+                    continue
+            
+            pipeline.execute()
+            return f"Updated ratings for {updated_count} players"
+            
     except Exception as exc:
         raise self.retry(exc=exc, countdown=60)

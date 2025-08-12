@@ -584,3 +584,19 @@ class AuthMeResponse(BaseModel):
     user: User
     steamInfo: PlayerSummary
     privileges: PrivilegesList
+
+class RatingComponent(BaseModel):
+    points: int
+    normalized_score: float
+
+class PlayerRatingTotal(BaseModel):
+    points: int
+    rating: float
+    rating_class: str = Field(alias="class")
+
+class PlayerRatingResponse(BaseModel):
+    shooting_skills: RatingComponent
+    game_efficiency: RatingComponent
+    combat_effectiveness: RatingComponent
+    experience_activity: RatingComponent
+    total: PlayerRatingTotal
